@@ -1,69 +1,64 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# 🥾 Coturnos & Cia — Back-end Central (API RESTful)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+[![Laravel](https://img.shields.io/badge/Laravel-11.x-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)](https://laravel.com)
+[![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
+[![Sanctum](https://img.shields.io/badge/Auth-Sanctum-red?style=for-the-badge)](https://laravel.com/docs/sanctum)
+[![Mercado Pago](https://img.shields.io/badge/Payments-Mercado%20Pago-009EE3?style=for-the-badge)](https://www.mercadopago.com.br/developers)
+[![Docker](https://img.shields.io/badge/Environment-Docker%20Sail-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://laravel.com/docs/sail)
 
-## About Laravel
+Repositório central de back-end da plataforma de e-commerce **Coturnos & Cia**, construído para atender tanto a loja virtual de clientes quanto o painel administrativo através de uma arquitetura unificada de API RESTful.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 📌 Principais Recursos Implementados
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Esquema de Banco de Dados Oficial (14 Migrations):**
+    - Gestão de Usuários e Vínculo Multi-Redes Sociais (1:N para Google, Facebook, Apple).
+    - Catálogo de Coturnos com precificação, `slug` amigável e exclusão lógica (_Soft Deletes_).
+    - Grade de Estoque por Tamanho (37 ao 44) com chave composta única `[product_id, size]`.
+    - Galeria de Imagens integrada ao Cloudinary.
+    - Carrinhos de Compras dinâmicos (com suporte a _Guest Checkout_ via `session_id`).
+    - Pedidos e Pagamentos integrados ao Checkout Transparente do Mercado Pago (Pix e Cartão).
+    - Auditoria administrativa completa por IP e data.
+- **Autenticação Segura com Laravel Sanctum:**
+    - Emissão e controle de tokens de API SPA / Bearer Tokens.
+- **Segurança e Conformidade LGPD:**
+    - Criptografia bidirecional **AES-256-CBC** nativa para dados sensíveis (`cpf`, `telefone`) via Eloquent Casts derivada da `APP_KEY`.
+    - Hashing irreversível de senhas com **Argon2id / Bcrypt**.
+    - Regras estritas de proteção Anti-IDOR para manipulação de endereços e pedidos.
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## 🚀 Como Executar o Projeto
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+Para o guia detalhado com todas as opções de ambiente, comandos de manutenção e boas práticas, consulte:
+👉 **[Guia Completo de Execução e Manipulação (COMO_RODAR.md)](./COMO_RODAR.md)**
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Inicialização Rápida (Quickstart)
 
-## Laravel Sponsors
+```bash
+# 1. Instalar dependências PHP
+composer install
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+# 2. Configurar variáveis de ambiente
+cp .env.example .env
 
-### Premium Partners
+# 3. Gerar chave da aplicação (AES-256)
+php artisan key:generate
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+# 4. Criar o banco e rodar as migrations oficiais
+php artisan migrate:fresh
 
-## Contributing
+# 5. Iniciar o servidor local
+php artisan serve
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+A API estará acessível em: `http://localhost:8000`
 
-## Code of Conduct
+---
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## 📖 Documentação Adicional
 
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-# API_Coturnos
-# Coturnos_Back-end_Cliente
-# Coturnos_Back-end_Cliente
+- 📋 **[COMO_RODAR.md](./COMO_RODAR.md):** Manual completo de comandos Artisan, rotas, segurança e desenvolvimento.
+- 📝 **[CHANGELOG.md](./CHANGELOG.md):** Histórico de versões e alterações implementadas na base de código.
+- ⚙️ **[.env.example](./.env.example):** Gabarito de variáveis de ambiente comentado e documentado.
