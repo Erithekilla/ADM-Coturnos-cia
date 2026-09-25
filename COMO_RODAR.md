@@ -20,7 +20,7 @@ Para rodar a aplicação localmente, certifique-se de ter instalado:
 
 ```bash
 # Clone o seu repositório
-git clone https://github.com/luisesoliveira-dev/Coturnos_Back-end_Cliente.git
+git clone https://github.com/luisesoliveira-dev/Coturnos-Cia_Back-end_Cliente.git
 cd Coturnos_Back-end_Cliente
 
 # Instale os pacotes PHP
