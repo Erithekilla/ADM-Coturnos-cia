@@ -4,7 +4,22 @@ Todas as alterações relevantes, refatorações, migrations e instalações de 
 
 ---
 
-## [Unreleased / Sprint 18.09] - 2026-09-25
+## [Sprint 18.09] - 2026-09-28
+
+### 🗄️ Atualização e Alinhamento das Migrations (Planos Operacionais)
+
+- **`payments` (`2026_09_04_000003_create_payments_table.php`):**
+    - Adicionado campo indexado `preference_id` (VARCHAR 100) para compatibilidade oficial com a geração de Checkout Pro do Mercado Pago.
+    - Adicionado campo `init_point` (TEXT, nullable) para armazenar a URL de redirecionamento do gateway.
+    - Flexibilizado campo `method` para `VARCHAR(50)` (nullable), suportando retornos de webhook (`credit_card`, `pix`, `ticket`).
+- **`users` (`2026_09_01_000001_create_users_table.php`):**
+    - Expandido o enum `role` para suportar `['customer', 'admin', 'cliente']`, assegurando total compatibilidade com seeders e models dos membros.
+- **`orders` (`2026_09_04_000001_create_orders_table.php`):**
+    - Adicionados aliases de status em português (`pendente`, `pago`, `em_separacao`, etc.) para interoperabilidade completa com o front-end e backend de pagamentos.
+
+---
+
+## [Sprint 18.09] - 2026-09-25
 
 ### 🚀 Pacotes & Autenticação
 

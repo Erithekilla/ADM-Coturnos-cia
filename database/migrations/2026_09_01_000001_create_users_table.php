@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('phone', 255); // Encrypted using AES-256-CBC via APP_KEY (LGPD compliant)
             $table->date('birth_date')->nullable();
             $table->string('password', 255)->nullable(); // Argon2id/Bcrypt hash; nullable for pure social OAuth login
-            $table->enum('role', ['customer', 'admin'])->default('customer');
+            $table->enum('role', ['customer', 'admin', 'cliente'])->default('customer');
             $table->boolean('active')->default(true);
             $table->rememberToken();
             $table->timestamps();
