@@ -16,7 +16,10 @@ return new class extends Migration
             $table->string('order_number', 20)->unique();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('address_id')->nullable()->constrained('addresses')->onDelete('set null');
-            $table->enum('status', ['pending', 'paid', 'preparing', 'shipped', 'delivered', 'cancelled'])->default('pending');
+            $table->enum('status', [
+                'pending', 'paid', 'preparing', 'shipped', 'delivered', 'cancelled',
+                'pendente', 'pago', 'em_separacao', 'enviado', 'entregue', 'cancelado'
+            ])->default('pending');
             $table->decimal('subtotal', 10, 2);
             $table->decimal('shipping_fee', 10, 2)->default(0.00);
             $table->decimal('discount_fee', 10, 2)->default(0.00);
