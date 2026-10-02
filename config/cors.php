@@ -15,20 +15,13 @@ return [
     |
     */
 
-    'paths' => [
-    'api/*', 
-    'sanctum/csrf-cookie', 
-    'consulta-cep/*'
-    ],
+    'paths' => ['api/*', 'sanctum/csrf-cookie'],
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins' => ['*'],
 
-    'allowed_origins' => [
-    'http://localhost:5173', // <--- Substitua pela URL/porta exata onde seu React roda
-    'http://127.0.0.1:5173',
-    ],
+    'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
 
@@ -39,5 +32,3 @@ return [
     'supports_credentials' => false,
 
 ];
-
-

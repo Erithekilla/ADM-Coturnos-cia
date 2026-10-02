@@ -1,19 +1,19 @@
 <?php
 
-namespace Tests\Feature;
+test('root redirects to admin', function () {
+    $response = $this->get('/');
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
+    $response->assertRedirect('/admin');
+});
 
-class ExampleTest extends TestCase
-{
-    /**
-     * A basic test example.
-     */
-    public function test_the_application_returns_a_successful_response(): void
-    {
-        $response = $this->get('/');
+test('admin returns successful react frontend response', function () {
+    $response = $this->get('/admin');
 
-        $response->assertStatus(200);
-    }
-}
+    $response->assertStatus(200);
+});
+
+test('admin subroutes return react frontend response', function () {
+    $response = $this->get('/admin/produtos');
+
+    $response->assertStatus(200);
+});
