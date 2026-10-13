@@ -13,15 +13,11 @@ class SuperFreteService
 
     public function __construct()
     {
-        // Define a URL base por configuração ou usa o sandbox como fallback seguro
         $this->baseUrl = config('services.super_frete.url', 'https://sandbox.superfrete.com/api/v0/calculator');
-        
+
         $this->token = config('services.super_frete.token');
     }
 
-    /**
-     * Calcula o frete usando as dimensões padrão do CoturnoEmbalado.
-     */
     public function calcularFreteCoturno(string $cepDestino, string $services = '1,2,17', ?float $valorDeclarado = 0.0): array
     {
         $coturno = new CoturnoEmbalado();
@@ -31,16 +27,13 @@ class SuperFreteService
         ], [
             'postal_code' => $cepDestino,
         ], $services, [
-            // Força a conversão explícita para string formatada com 2 casas decimais
             'height' => number_format((float) $coturno->altura, 2, '.', ''),
             'width' => number_format((float) $coturno->largura, 2, '.', ''),
             'length' => number_format((float) $coturno->comprimento, 2, '.', ''),
             'weight' => number_format((float) $coturno->peso, 2, '.', ''),
         ], $valorDeclarado);
     }
-    /**
-     * Método genérico de cálculo integrando com a API do Super Frete.
-     */
+
     public function calcular(array $from, array $to, string $services, array $package, float $insuranceValue = 0.0): array
     {
         try {

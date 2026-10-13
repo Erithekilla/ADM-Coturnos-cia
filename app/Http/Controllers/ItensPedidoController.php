@@ -8,9 +8,6 @@ use Illuminate\Http\JsonResponse;
 
 class ItensPedidoController extends Controller
 {
-    /**
-     * List all records (paginated or with relations).
-     */
     public function index(): JsonResponse
     {
         $data = ItensPedido::with(['pedido', 'produto'])->paginate(20);
@@ -20,9 +17,6 @@ class ItensPedidoController extends Controller
         ], 200);
     }
 
-    /**
-     * Store a newly created record in storage.
-     */
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -42,9 +36,6 @@ class ItensPedidoController extends Controller
         ], 201);
     }
 
-    /**
-     * Display the specified record.
-     */
     public function show($id): JsonResponse
     {
         $record = ItensPedido::with(['pedido', 'produto'])->find($id);
@@ -62,9 +53,6 @@ class ItensPedidoController extends Controller
         ], 200);
     }
 
-    /**
-     * Update the specified record in storage.
-     */
     public function update(Request $request, $id): JsonResponse
     {
         $record = ItensPedido::find($id);
@@ -93,9 +81,6 @@ class ItensPedidoController extends Controller
         ], 200);
     }
 
-    /**
-     * Remove the specified record from storage.
-     */
     public function destroy($id): JsonResponse
     {
         $record = ItensPedido::find($id);
@@ -115,3 +100,4 @@ class ItensPedidoController extends Controller
         ], 200);
     }
 }
+

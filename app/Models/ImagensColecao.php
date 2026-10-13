@@ -11,7 +11,7 @@ class ImagensColecao extends Model
 
     protected $table = 'imagens_colecao';
     protected $primaryKey = 'id_imagens_colecao';
-    
+
     public $timestamps = false;
 
     protected $fillable = ['url_imagem', 'id_colecao'];
@@ -20,5 +20,5 @@ class ImagensColecao extends Model
     {
         return $this->belongsTo(Colecao::class, 'id_colecao', 'id_colecao');
     }
-
 }
+

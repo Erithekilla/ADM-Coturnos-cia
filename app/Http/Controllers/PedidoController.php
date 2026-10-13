@@ -8,9 +8,6 @@ use Illuminate\Http\JsonResponse;
 
 class PedidoController extends Controller
 {
-    /**
-     * Lista todos os pedidos com seus relacionamentos reais do banco de dados MySQL.
-     */
     public function index(): JsonResponse
     {
         $pedidos = Pedido::with(['usuario', 'endereco', 'itens.produto', 'pagamentos', 'historicos'])->orderBy('id', 'desc')->get();
@@ -48,9 +45,6 @@ class PedidoController extends Controller
         ], 200);
     }
 
-    /**
-     * Grava um novo pedido no banco de dados MySQL.
-     */
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -70,9 +64,6 @@ class PedidoController extends Controller
         ], 201);
     }
 
-    /**
-     * Exibe os detalhes de um pedido específico.
-     */
     public function show($id): JsonResponse
     {
         $record = Pedido::with(['usuario', 'endereco', 'itens.produto', 'pagamentos', 'historicos'])->find($id);
@@ -90,9 +81,6 @@ class PedidoController extends Controller
         ], 200);
     }
 
-    /**
-     * Atualiza o pedido no banco de dados MySQL.
-     */
     public function update(Request $request, $id): JsonResponse
     {
         $record = Pedido::with('itens')->find($id);
@@ -114,7 +102,6 @@ class PedidoController extends Controller
                 $novoStatus = strtolower(trim((string)$novoStatusRaw));
                 $record->status = $novoStatus;
 
-                // Estorno automático de estoque se status virou cancelado
                 if ($novoStatus === 'cancelado' && $statusAnterior !== 'cancelado') {
                     foreach ($record->itens as $item) {
                         $query = \App\Models\TamanhoProduto::where('produtos_id', $item->produtos_id);
@@ -135,7 +122,6 @@ class PedidoController extends Controller
                     default => 1,
                 };
 
-                // Histórico de status
                 \App\Models\HistoricoPedido::create([
                     'pedido_id' => $record->id,
                     'status' => $statusInt,
@@ -172,9 +158,6 @@ class PedidoController extends Controller
         }
     }
 
-    /**
-     * Remove o pedido do banco de dados MySQL.
-     */
     public function destroy($id): JsonResponse
     {
         $record = Pedido::find($id);
@@ -194,3 +177,4 @@ class PedidoController extends Controller
         ], 200);
     }
 }
+

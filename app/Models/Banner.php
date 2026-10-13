@@ -11,7 +11,7 @@ class Banner extends Model
 
     protected $table = 'banner';
     protected $primaryKey = 'idbanner';
-    
+
     public $timestamps = false;
 
     protected $fillable = ['ativo'];
@@ -20,5 +20,5 @@ class Banner extends Model
     {
         return $this->hasMany(ImagensBanner::class, 'banner_idbanner', 'idbanner');
     }
-
 }
+

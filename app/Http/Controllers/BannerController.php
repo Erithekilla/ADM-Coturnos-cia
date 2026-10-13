@@ -8,9 +8,6 @@ use Illuminate\Http\JsonResponse;
 
 class BannerController extends Controller
 {
-    /**
-     * List all records (paginated or with relations).
-     */
     public function index(): JsonResponse
     {
         $data = Banner::with(['imagens'])->paginate(20);
@@ -20,9 +17,6 @@ class BannerController extends Controller
         ], 200);
     }
 
-    /**
-     * Store a newly created record in storage.
-     */
     public function store(Request $request): JsonResponse
     {
         $ativoRaw = $request->input('ativo') ?: 'ativo';
@@ -39,9 +33,6 @@ class BannerController extends Controller
         ], 201);
     }
 
-    /**
-     * Display the specified record.
-     */
     public function show($id): JsonResponse
     {
         $record = Banner::with(['imagens'])->find($id);
@@ -59,9 +50,6 @@ class BannerController extends Controller
         ], 200);
     }
 
-    /**
-     * Update the specified record in storage.
-     */
     public function update(Request $request, $id): JsonResponse
     {
         $record = Banner::find($id);
@@ -90,9 +78,6 @@ class BannerController extends Controller
         ], 200);
     }
 
-    /**
-     * Remove the specified record from storage.
-     */
     public function destroy($id): JsonResponse
     {
         $record = Banner::find($id);
@@ -112,9 +97,6 @@ class BannerController extends Controller
         ], 200);
     }
 
-    /**
-     * Upload e atualização de imagens da loja (Banner, Carrossel e Destaque).
-     */
     public function uploadStoreImages(Request $request): JsonResponse
     {
         $urls = [];
@@ -149,3 +131,4 @@ class BannerController extends Controller
         ], 200);
     }
 }
+

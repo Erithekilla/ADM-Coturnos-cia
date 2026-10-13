@@ -17,3 +17,4 @@ test('admin subroutes return react frontend response', function () {
 
     $response->assertStatus(200);
 });
+

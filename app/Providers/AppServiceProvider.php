@@ -6,20 +6,14 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
-        //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
         \App\Models\Produto::observe(\App\Observers\ProdutoObserver::class);
         \App\Models\Pedido::observe(\App\Observers\PedidoObserver::class);
     }
 }
+

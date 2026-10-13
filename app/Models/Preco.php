@@ -11,7 +11,7 @@ class Preco extends Model
 
     protected $table = 'precos';
     protected $primaryKey = 'id_precos';
-    
+
     public $timestamps = false;
 
     protected $fillable = ['preco', 'alteracao', 'produtos_id'];
@@ -25,5 +25,5 @@ class Preco extends Model
     {
         return $this->hasMany(PromocaoProduto::class, 'precos_id_precos', 'id_precos');
     }
-
 }
+

@@ -11,7 +11,7 @@ class Pedido extends Model
 
     protected $table = 'pedido';
     protected $primaryKey = 'id';
-    
+
     public $timestamps = false;
 
     protected $fillable = ['valor_total', 'status', 'data_pedido', 'usuario_id', 'endereco_id'];
@@ -40,5 +40,5 @@ class Pedido extends Model
     {
         return $this->hasMany(HistoricoPedido::class, 'pedido_id', 'id');
     }
-
 }
+

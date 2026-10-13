@@ -11,7 +11,7 @@ class ImagensBanner extends Model
 
     protected $table = 'imagens_banner';
     protected $primaryKey = 'id_imagens_banner';
-    
+
     public $timestamps = false;
 
     protected $fillable = ['url_imagem', 'banner_idbanner'];
@@ -20,5 +20,5 @@ class ImagensBanner extends Model
     {
         return $this->belongsTo(Banner::class, 'banner_idbanner', 'idbanner');
     }
-
 }
+

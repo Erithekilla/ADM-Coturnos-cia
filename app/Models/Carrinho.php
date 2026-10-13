@@ -11,7 +11,7 @@ class Carrinho extends Model
 
     protected $table = 'carrinho';
     protected $primaryKey = 'id_carrinho';
-    
+
     public $timestamps = false;
 
     protected $fillable = ['usuario_id', 'criado_em', 'atualizado_em'];
@@ -25,5 +25,5 @@ class Carrinho extends Model
     {
         return $this->hasMany(ItensCarrinho::class, 'carrinho_id_carrinho', 'id_carrinho');
     }
-
 }
+

@@ -11,7 +11,7 @@ class Colecao extends Model
 
     protected $table = 'colecao';
     protected $primaryKey = 'id_colecao';
-    
+
     public $timestamps = false;
 
     protected $fillable = ['nome_colecao', 'descricao_colecao', 'data_inicio', 'data_fim'];
@@ -25,5 +25,5 @@ class Colecao extends Model
     {
         return $this->hasMany(ImagensColecao::class, 'id_colecao', 'id_colecao');
     }
-
 }
+

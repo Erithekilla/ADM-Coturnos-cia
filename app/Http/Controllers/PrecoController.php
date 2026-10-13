@@ -8,9 +8,6 @@ use Illuminate\Http\JsonResponse;
 
 class PrecoController extends Controller
 {
-    /**
-     * List all records (paginated or with relations).
-     */
     public function index(): JsonResponse
     {
         $data = Preco::with(['produto', 'promocoes'])->paginate(20);
@@ -20,9 +17,6 @@ class PrecoController extends Controller
         ], 200);
     }
 
-    /**
-     * Store a newly created record in storage.
-     */
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -40,9 +34,6 @@ class PrecoController extends Controller
         ], 201);
     }
 
-    /**
-     * Display the specified record.
-     */
     public function show($id): JsonResponse
     {
         $record = Preco::with(['produto', 'promocoes'])->find($id);
@@ -60,9 +51,6 @@ class PrecoController extends Controller
         ], 200);
     }
 
-    /**
-     * Update the specified record in storage.
-     */
     public function update(Request $request, $id): JsonResponse
     {
         $record = Preco::find($id);
@@ -89,9 +77,6 @@ class PrecoController extends Controller
         ], 200);
     }
 
-    /**
-     * Remove the specified record from storage.
-     */
     public function destroy($id): JsonResponse
     {
         $record = Preco::find($id);
@@ -111,3 +96,4 @@ class PrecoController extends Controller
         ], 200);
     }
 }
+

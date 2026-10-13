@@ -11,7 +11,7 @@ class ImagensProduto extends Model
 
     protected $table = 'imagens_produto';
     protected $primaryKey = 'id_imagens_produto';
-    
+
     public $timestamps = false;
 
     protected $fillable = ['url_imagem', 'produtos_id'];
@@ -20,5 +20,5 @@ class ImagensProduto extends Model
     {
         return $this->belongsTo(Produto::class, 'produtos_id', 'id');
     }
-
 }
+

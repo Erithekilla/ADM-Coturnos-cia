@@ -8,9 +8,6 @@ use Illuminate\Http\JsonResponse;
 
 class AdminUsuarioController extends Controller
 {
-    /**
-     * GET /api/v1/admin/usuarios: Lista usuários sem expor senhas.
-     */
     public function index(Request $request): JsonResponse
     {
         $query = Usuario::where(function ($q) {
@@ -35,9 +32,6 @@ class AdminUsuarioController extends Controller
         ], 200);
     }
 
-    /**
-     * PATCH /api/v1/admin/usuarios/{id}/toggle-status: Alterna status (Ativo/Inativo).
-     */
     public function toggleStatus($id): JsonResponse
     {
         $usuario = Usuario::find($id);
@@ -62,9 +56,6 @@ class AdminUsuarioController extends Controller
         ], 200);
     }
 
-    /**
-     * PATCH /api/v1/admin/usuarios/{id}/toggle-role: Alterna Role (Cliente/Admin).
-     */
     public function toggleRole($id): JsonResponse
     {
         $usuario = Usuario::find($id);
@@ -89,3 +80,4 @@ class AdminUsuarioController extends Controller
         ], 200);
     }
 }
+

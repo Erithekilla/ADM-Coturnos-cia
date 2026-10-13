@@ -11,7 +11,7 @@ class ItensPedido extends Model
 
     protected $table = 'itens_pedidos';
     protected $primaryKey = 'id';
-    
+
     public $timestamps = false;
 
     protected $fillable = ['quantidade', 'tamanho', 'preco_unitario', 'produtos_id', 'pedido_id'];
@@ -25,5 +25,5 @@ class ItensPedido extends Model
     {
         return $this->belongsTo(Produto::class, 'produtos_id', 'id');
     }
-
 }
+

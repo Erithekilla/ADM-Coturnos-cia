@@ -25,5 +25,5 @@ class ItensCarrinho extends Model
     {
         return $this->belongsTo(Produto::class, 'produtos_id', 'id');
     }
-
 }
+

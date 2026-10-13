@@ -11,9 +11,6 @@ use Illuminate\Support\Facades\DB;
 
 class ProdutoSeeder extends Seeder
 {
-    /**
-     * Seed produtos baseados no front-end.
-     */
     public function run(): void
     {
         $produtosFrontend = [

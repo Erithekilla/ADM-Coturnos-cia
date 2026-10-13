@@ -1,50 +1,237 @@
-*.log
-.DS_Store
-Thumbs.db
-desktop.ini
+# ==============================================================================
+# Gitignore - Backend API (Laravel)
+# ==============================================================================
 
+# ------------------------------------------------------------------------------
+# 1. Variáveis de Ambiente e Arquivos de Configuração Sensíveis
+# ------------------------------------------------------------------------------
 .env
 .env.*
-.env.backup
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .env.production
+.env.staging
+.env.testing
+.env.backup
+.env.bak
+.env.old
+.env.save
+.env.temp
+.env.tmp
+.envrc
+.env.vault
+.env.keys
+*.env
+*.env.*
+
+# Preservar apenas arquivos de exemplo / templates
 !.env.example
+!.env.*.example
+!*.env.example
 
-.phpactor.json
-.phpunit.result.cache
-/.phpunit.cache
+# ------------------------------------------------------------------------------
+# 2. Chaves Criptográficas, Certificados, Tokens e SSH (Segurança Crítica)
+# ------------------------------------------------------------------------------
+*.pem
+*.key
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pkcs12
+*.crt
+*.cer
+*.der
+*.csr
+*.pub
+*.ca-bundle
+*.p8
+*.p7b
+oauth-private.key
+oauth-public.key
+jwt-*.key
+jwt-*.pem
+jwt-private.pem
+jwt-public.pem
 
-/.codex
-/.cursor/
-/.idea
-/.nova
-/.vscode
-/.zed
+# Chaves e identificadores SSH
+id_rsa*
+id_dsa*
+id_ed25519*
+id_ecdsa*
+known_hosts*
+authorized_keys*
 
+# ------------------------------------------------------------------------------
+# 3. Credenciais de Serviços em Nuvem, APIs e Pagamentos (AWS, GCP, Firebase, etc.)
+# ------------------------------------------------------------------------------
+.aws/
+*aws-credentials*
+*service-account*.json
+*serviceAccount*.json
+firebase-adminsdk*.json
+google-services.json
+GoogleService-Info.plist
+credentials.json
+client_secret*.json
+client_secrets*.json
+secret*.json
+secret*.yml
+secret*.yaml
+secrets/
+superfrete*.json
+mercadopago*.json
+stripe*.json
+cloudinary*.json
+*.token
+token.json
+tokens.json
+.azure/
+.wrangler/
+docker-compose.override.yml
+docker-compose.local.yml
+*.tfvars
+*.tfvars.json
+*.tfstate
+*.tfstate.*
+
+# ------------------------------------------------------------------------------
+# 4. Credenciais de Gerenciadores de Pacotes (Composer, NPM, Yarn)
+# ------------------------------------------------------------------------------
 /auth.json
-/node_modules
-/vendor
+auth.json
+.composer/
+.npmrc.local
+.npmrc-backup
+.yarnrc.local
+.pypirc
+.netrc
 
-/public/build
-/public/fonts-manifest.dev.json
-/public/hot
-/public/storage
-
-/storage/*.key
-/storage/pail
-/storage/framework/cache/data/*
-/storage/framework/sessions/*
-/storage/framework/testing/*
-/storage/framework/views/*
-!/storage/framework/cache/data/.gitignore
-!/storage/framework/sessions/.gitignore
-!/storage/framework/testing/.gitignore
-!/storage/framework/views/.gitignore
-/bootstrap/cache/*.php
-!/bootstrap/cache/.gitignore
-
+# ------------------------------------------------------------------------------
+# 5. Bancos de Dados, Dumps e Backups (LGPD e Prevenção de Vazamento de Dados)
+# ------------------------------------------------------------------------------
+*.sql
+*.sql.gz
+*.sql.bz2
+*.sql.tar.gz
+*.dump
+*.dmp
+*.rdb
+*.sqlite
+*.sqlite-journal
+*.sqlite3
+*.db
+*.db-journal
+database.sqlite
 /database/*.sqlite
 /database/*.sqlite-journal
+/database/*.sqlite3
+/database/*.db
+/database/dumps/
+/database/backups/
 
+# ------------------------------------------------------------------------------
+# 6. Laravel Storage, Sessões de Usuários e Uploads
+# ------------------------------------------------------------------------------
+/storage/*.key
+/storage/oauth-*.key
+/storage/pail
+/storage/pail/
+/storage/logs/*
+!/storage/logs/.gitignore
+/storage/framework/cache/data/*
+!/storage/framework/cache/data/.gitignore
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+/storage/framework/testing/*
+!/storage/framework/testing/.gitignore
+/storage/framework/views/*
+!/storage/framework/views/.gitignore
+
+# Diretório app de arquivos privados e públicos (uploads de clientes)
+/storage/app/*
+!/storage/app/private/
+!/storage/app/public/
+!/storage/app/.gitignore
+/storage/app/private/*
+!/storage/app/private/.gitignore
+/storage/app/public/*
+!/storage/app/public/.gitignore
+
+/public/storage
+/public/uploads/*
+!/public/uploads/.gitkeep
+
+# ------------------------------------------------------------------------------
+# 7. Arquivos de Backup, Temporários e Swaps
+# ------------------------------------------------------------------------------
+*.bak
+*.backup
+*.old
+*.orig
+*.save
+*.patch
+*.tmp
+*.temp
+*~
+*.swp
+*.swo
+*.swn
+
+# ------------------------------------------------------------------------------
+# 8. Logs e Depuração (Evitar vazamento de tokens, senhas e stack traces)
+# ------------------------------------------------------------------------------
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ------------------------------------------------------------------------------
+# 9. IDEs, Editores e Histórico Local
+# ------------------------------------------------------------------------------
+.history/
+/.idea
+/.fleet
+/.vscode
+/.cursor/
+/.codex
+/.zed
+/.nova
+*.sublime-project
+*.sublime-workspace
+.phpactor.json
 _ide_helper.php
 Homestead.json
 Homestead.yaml
+
+# ------------------------------------------------------------------------------
+# 10. Dependências, Compilação e Caches
+# ------------------------------------------------------------------------------
+/node_modules
+/vendor
+/bootstrap/cache/*.php
+!/bootstrap/cache/.gitignore
+/public/build
+/public/fonts-manifest.dev.json
+/public/hot
+.phpunit.result.cache
+/.phpunit.cache
+.php_cs.cache
+.php-cs-fixer.cache
+
+# ------------------------------------------------------------------------------
+# 11. Sistema Operacional
+# ------------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini

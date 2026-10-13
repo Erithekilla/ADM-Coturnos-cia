@@ -11,7 +11,7 @@ class PromocaoProduto extends Model
 
     protected $table = 'promocao_produtos';
     protected $primaryKey = 'id';
-    
+
     public $timestamps = false;
 
     protected $fillable = ['valor_promo', 'data_inicio', 'data_fim', 'ativo', 'precos_id_precos'];
@@ -20,5 +20,5 @@ class PromocaoProduto extends Model
     {
         return $this->belongsTo(Preco::class, 'precos_id_precos', 'id_precos');
     }
-
 }
+

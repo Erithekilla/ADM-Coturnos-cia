@@ -13,9 +13,6 @@ use Carbon\Carbon;
 
 class AuthController extends Controller
 {
-    /**
-     * Realiza o cadastro completo do usuário e de seu endereço.
-     */
     public function register(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -55,11 +52,9 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // Sanitização de CPF e CEP
         $cpfLimpo = preg_replace('/\D/', '', $request->cpf);
         $cepLimpo = preg_replace('/\D/', '', $request->cep);
 
-        // Verificação de duplicidade de e-mail
         if (Usuario::where('email', $request->email)->exists()) {
             return response()->json([
                 'status' => 'error',
@@ -68,7 +63,6 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // Verificação de duplicidade de CPF (se informado)
         if (!empty($cpfLimpo) && Usuario::where('cpf', $cpfLimpo)->exists()) {
             return response()->json([
                 'status' => 'error',
@@ -77,12 +71,10 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // Separação de nome e sobrenome
         $nomePartes = explode(' ', trim($request->nome), 2);
         $primeiroNome = $nomePartes[0];
         $sobrenome = isset($nomePartes[1]) ? trim($nomePartes[1]) : '';
 
-        // Formatação da data de nascimento
         $nascimentoFormatado = null;
         try {
             if (str_contains($request->nascimento, '/')) {
@@ -153,9 +145,6 @@ class AuthController extends Controller
         }
     }
 
-    /**
-     * Realiza a autenticação (Login) do usuário.
-     */
     public function login(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -203,9 +192,6 @@ class AuthController extends Controller
         ], 200);
     }
 
-    /**
-     * Retorna os dados do usuário autenticado a partir do token de sessão.
-     */
     public function me(Request $request): JsonResponse
     {
         $token = $request->bearerToken() ?: $request->header('Authorization') ?: $request->input('token');
@@ -254,9 +240,6 @@ class AuthController extends Controller
         }
     }
 
-    /**
-     * Encerra a sessão.
-     */
     public function logout(): JsonResponse
     {
         return response()->json([

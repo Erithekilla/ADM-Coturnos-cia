@@ -11,7 +11,7 @@ class Produto extends Model
 
     protected $table = 'produtos';
     protected $primaryKey = 'id';
-    
+
     public $timestamps = false;
 
     protected $fillable = ['tipo_do_produto', 'modelo', 'marca', 'descricao', 'ativo', 'cor', 'status', 'excluido'];
@@ -45,5 +45,5 @@ class Produto extends Model
     {
         return $this->hasMany(ItensPedido::class, 'produtos_id', 'id');
     }
-
 }
+

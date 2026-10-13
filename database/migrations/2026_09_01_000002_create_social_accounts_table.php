@@ -6,15 +6,12 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('social_accounts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->string('provider_name', 30); // 'google', 'facebook', 'apple'
+            $table->string('provider_name', 30);
             $table->string('provider_id', 191);
             $table->timestamps();
 
@@ -22,11 +19,9 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('social_accounts');
     }
 };
+

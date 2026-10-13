@@ -11,7 +11,7 @@ class Usuario extends Model
 
     protected $table = 'usuario';
     protected $primaryKey = 'id';
-    
+
     public $timestamps = false;
 
     protected $fillable = ['nome', 'sobrenome', 'cpf', 'data_nascimento', 'email', 'data_criacao', 'senha', 'google_id', 'provider', 'role', 'status', 'excluido'];
@@ -31,5 +31,5 @@ class Usuario extends Model
     {
         return $this->hasMany(Pedido::class, 'usuario_id', 'id');
     }
-
 }
+

@@ -6,20 +6,17 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('first_name', 60);
             $table->string('last_name', 60);
-            $table->string('cpf', 255); // Encrypted using AES-256-CBC via APP_KEY (LGPD compliant)
+            $table->string('cpf', 255);
             $table->string('email', 191)->unique();
-            $table->string('phone', 255); // Encrypted using AES-256-CBC via APP_KEY (LGPD compliant)
+            $table->string('phone', 255);
             $table->date('birth_date')->nullable();
-            $table->string('password', 255)->nullable(); // Argon2id/Bcrypt hash; nullable for pure social OAuth login
+            $table->string('password', 255)->nullable();
             $table->enum('role', ['customer', 'admin', 'cliente'])->default('customer');
             $table->boolean('active')->default(true);
             $table->rememberToken();
@@ -27,11 +24,9 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('users');
     }
 };
+

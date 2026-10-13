@@ -9,12 +9,8 @@ use Illuminate\Support\Facades\Hash;
 
 class AdminUserSeeder extends Seeder
 {
-    /**
-     * Gera o usuário administrador padrão do sistema.
-     */
     public function run(): void
     {
-        // 1. Cadastra/Atualiza na tabela 'usuario' (utilizada pela API e Front-end Admin)
         Usuario::updateOrCreate(
             ['email' => 'admin@coturnos.com.br'],
             [
@@ -30,7 +26,6 @@ class AdminUserSeeder extends Seeder
             ]
         );
 
-        // 2. Garante compatibilidade caso o auth nativo do Laravel utilize o model User
         if (class_exists(User::class)) {
             User::updateOrCreate(
                 ['email' => 'admin@coturnos.com.br'],
@@ -42,3 +37,4 @@ class AdminUserSeeder extends Seeder
         }
     }
 }
+

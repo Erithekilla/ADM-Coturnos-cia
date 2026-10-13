@@ -11,7 +11,7 @@ class Pagamento extends Model
 
     protected $table = 'pagamento';
     protected $primaryKey = 'id_compra';
-    
+
     public $timestamps = false;
 
     protected $fillable = ['data_pagamento', 'pedido_id', 'metodo_pagamento', 'status', 'valor'];
@@ -20,5 +20,5 @@ class Pagamento extends Model
     {
         return $this->belongsTo(Pedido::class, 'pedido_id', 'id');
     }
-
 }
+

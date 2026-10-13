@@ -11,9 +11,6 @@ use Illuminate\Http\JsonResponse;
 
 class CarrinhoController extends Controller
 {
-    /**
-     * List all records (paginated or with relations).
-     */
     public function index(): JsonResponse
     {
         $data = Carrinho::with(['usuario', 'itens.produto'])->paginate(20);
@@ -23,9 +20,6 @@ class CarrinhoController extends Controller
         ], 200);
     }
 
-    /**
-     * Store a newly created record in storage.
-     */
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -43,9 +37,6 @@ class CarrinhoController extends Controller
         ], 201);
     }
 
-    /**
-     * Display the specified record.
-     */
     public function show($id): JsonResponse
     {
         $record = Carrinho::with(['usuario', 'itens.produto'])->find($id);
@@ -63,9 +54,6 @@ class CarrinhoController extends Controller
         ], 200);
     }
 
-    /**
-     * Update the specified record in storage.
-     */
     public function update(Request $request, $id): JsonResponse
     {
         $record = Carrinho::find($id);
@@ -92,9 +80,6 @@ class CarrinhoController extends Controller
         ], 200);
     }
 
-    /**
-     * Remove the specified record from storage.
-     */
     public function destroy($id): JsonResponse
     {
         $record = Carrinho::find($id);
@@ -114,9 +99,6 @@ class CarrinhoController extends Controller
         ], 200);
     }
 
-    /**
-     * Obtém o carrinho do usuário autenticado com seus itens formatados para o front.
-     */
     public function getMeCarrinho(Request $request): JsonResponse
     {
         $usuario = $this->getAuthenticatedUser($request);
@@ -135,9 +117,6 @@ class CarrinhoController extends Controller
         ], 200);
     }
 
-    /**
-     * Adiciona um item ao carrinho do usuário no banco.
-     */
     public function adicionarItem(Request $request): JsonResponse
     {
         $usuario = $this->getAuthenticatedUser($request);
@@ -185,9 +164,6 @@ class CarrinhoController extends Controller
         ], 200);
     }
 
-    /**
-     * Atualiza a quantidade de um item no carrinho.
-     */
     public function atualizarItem(Request $request): JsonResponse
     {
         $usuario = $this->getAuthenticatedUser($request);
@@ -240,9 +216,6 @@ class CarrinhoController extends Controller
         ], 200);
     }
 
-    /**
-     * Remove um item do carrinho.
-     */
     public function removerItem(Request $request): JsonResponse
     {
         $usuario = $this->getAuthenticatedUser($request);
@@ -272,9 +245,6 @@ class CarrinhoController extends Controller
         ], 200);
     }
 
-    /**
-     * Limpa todos os itens do carrinho do usuário.
-     */
     public function limparCarrinho(Request $request): JsonResponse
     {
         $usuario = $this->getAuthenticatedUser($request);
@@ -303,9 +273,6 @@ class CarrinhoController extends Controller
         ], 200);
     }
 
-    /**
-     * Sincroniza itens locais do front com o carrinho no banco de dados.
-     */
     public function sincronizarCarrinho(Request $request): JsonResponse
     {
         $usuario = $this->getAuthenticatedUser($request);
@@ -435,3 +402,4 @@ class CarrinhoController extends Controller
         }
     }
 }
+

@@ -11,9 +11,6 @@ use Illuminate\Support\Facades\Hash;
 
 class UsuarioController extends Controller
 {
-    /**
-     * List all records formatted for both table and API consumers.
-     */
     public function index(): JsonResponse
     {
         $usuarios = Usuario::with(['enderecos', 'carrinhos', 'pedidos'])
@@ -56,9 +53,6 @@ class UsuarioController extends Controller
         ], 200)->header('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
 
-    /**
-     * Store a newly created record in storage.
-     */
     public function store(Request $request): JsonResponse
     {
         $nome = $request->input('nome') ?: $request->input('firstName');
@@ -100,9 +94,6 @@ class UsuarioController extends Controller
         ], 201);
     }
 
-    /**
-     * Display the specified record.
-     */
     public function show($id): JsonResponse
     {
         $record = Usuario::with(['enderecos', 'carrinhos', 'pedidos'])->find($id);
@@ -120,9 +111,6 @@ class UsuarioController extends Controller
         ], 200);
     }
 
-    /**
-     * Update the specified record in storage.
-     */
     public function update(Request $request, $id): JsonResponse
     {
         $record = Usuario::find($id);
@@ -138,7 +126,7 @@ class UsuarioController extends Controller
         $sobrenome = $request->input('sobrenome') ?: $request->input('lastName') ?: $record->sobrenome;
         $email = $request->input('email') ?: $record->email;
         $cpf = $request->has('cpf') ? $request->input('cpf') : $record->cpf;
-        
+
         $role = $record->role;
         if ($request->has('role')) {
             $role = $request->input('role');
@@ -175,9 +163,6 @@ class UsuarioController extends Controller
         ], 200);
     }
 
-    /**
-     * Remove the specified record from storage.
-     */
     public function destroy($id): JsonResponse
     {
         $record = Usuario::find($id);
@@ -192,13 +177,11 @@ class UsuarioController extends Controller
         try {
             DB::beginTransaction();
 
-            // Atualiza status para inativo e excluido para 'S' no banco MySQL
             DB::table('usuario')->where('id', $id)->update([
                 'excluido' => 'S',
                 'status' => 'inativo',
             ]);
 
-            // Limpa itens de carrinho do usuário
             foreach ($record->carrinhos as $carrinho) {
                 DB::table('itens_carrinho')->where('carrinho_id_carrinho', $carrinho->id_carrinho)->delete();
             }
@@ -219,3 +202,4 @@ class UsuarioController extends Controller
         }
     }
 }
+

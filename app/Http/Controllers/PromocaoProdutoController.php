@@ -8,9 +8,6 @@ use Illuminate\Http\JsonResponse;
 
 class PromocaoProdutoController extends Controller
 {
-    /**
-     * List all records (paginated or with relations).
-     */
     public function index(): JsonResponse
     {
         $data = PromocaoProduto::with(['preco'])->paginate(20);
@@ -20,9 +17,6 @@ class PromocaoProdutoController extends Controller
         ], 200);
     }
 
-    /**
-     * Store a newly created record in storage.
-     */
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -45,9 +39,6 @@ class PromocaoProdutoController extends Controller
         ], 201);
     }
 
-    /**
-     * Display the specified record.
-     */
     public function show($id): JsonResponse
     {
         $record = PromocaoProduto::with(['preco'])->find($id);
@@ -65,9 +56,6 @@ class PromocaoProdutoController extends Controller
         ], 200);
     }
 
-    /**
-     * Update the specified record in storage.
-     */
     public function update(Request $request, $id): JsonResponse
     {
         $record = PromocaoProduto::find($id);
@@ -101,9 +89,6 @@ class PromocaoProdutoController extends Controller
         ], 200);
     }
 
-    /**
-     * Remove the specified record from storage.
-     */
     public function destroy($id): JsonResponse
     {
         $record = PromocaoProduto::find($id);
@@ -123,3 +108,4 @@ class PromocaoProdutoController extends Controller
         ], 200);
     }
 }
+

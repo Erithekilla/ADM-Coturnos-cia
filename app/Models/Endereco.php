@@ -11,7 +11,7 @@ class Endereco extends Model
 
     protected $table = 'endereco';
     protected $primaryKey = 'id';
-    
+
     public $timestamps = false;
 
     protected $fillable = ['cep', 'rua', 'bairro', 'cidade', 'estado', 'numero', 'complemento', 'padrao', 'usuario_id'];
@@ -25,5 +25,5 @@ class Endereco extends Model
     {
         return $this->hasMany(Pedido::class, 'endereco_id', 'id');
     }
-
 }
+

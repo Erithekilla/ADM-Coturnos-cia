@@ -15,15 +15,9 @@ use Illuminate\Support\Facades\Cache;
 
 class AdminDashboardController extends Controller
 {
-    /**
-     * GET /api/v1/admin/dashboard
-     * Métricas consolidadas com cache de 5 minutos (300 segundos),
-     * comparativo mensal de faturamento, pedidos por status, top 5 coturnos e alerta de estoque crítico.
-     */
     public function dashboard(): JsonResponse
     {
         $dados = Cache::remember('metrics_dashboard', 300, function () {
-            // 1. Faturamento mês atual vs mês anterior com cálculo de % real
             $agora = now();
             $mesAtual = $agora->month;
             $anoAtual = $agora->year;
@@ -44,7 +38,6 @@ class AdminDashboardController extends Controller
 
             $faturamentoTotal = (float) Pedido::whereNotIn('status', ['cancelado', 'Cancelado'])->sum('valor_total');
 
-            // Se ainda não houver pedidos reais no mês, estima valor de catálogo
             if ($faturamentoTotal == 0) {
                 $faturamentoTotal = (float) DB::table('precos')
                     ->join('tamanho_produtos', 'precos.produtos_id', '=', 'tamanho_produtos.produtos_id')
@@ -57,10 +50,9 @@ class AdminDashboardController extends Controller
             } elseif ($faturamentoMesAtual > 0) {
                 $trendReceita = 100.0;
             } else {
-                $trendReceita = 12.5; // fallback informativo
+                $trendReceita = 12.5;
             }
 
-            // 2. Contagem de pedidos por status
             $pedidosPorStatusRaw = Pedido::select('status', DB::raw('COUNT(*) as total'))
                 ->groupBy('status')
                 ->pluck('total', 'status')
@@ -72,7 +64,6 @@ class AdminDashboardController extends Controller
                 $pedidosPorStatus[$st] = $pedidosPorStatusRaw[$st] ?? $pedidosPorStatusRaw[ucfirst($st)] ?? 0;
             }
 
-            // 3. Alerta de estoque crítico (< 5 unidades)
             $estoqueCriticoItens = TamanhoProduto::with('produto')
                 ->where('quantidade', '<', 5)
                 ->whereHas('produto', function ($q) {
@@ -88,12 +79,10 @@ class AdminDashboardController extends Controller
                     ];
                 });
 
-            // 4. Métricas Gerais
             $totalClientes = Usuario::where('role', 'cliente')->count();
             $totalPedidos = Pedido::count();
             $totalEstoque = (int) TamanhoProduto::sum('quantidade');
 
-            // 5. Vendas mensais estruturadas (12 meses)
             $mesesNomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
             $vendasMensais = [];
 
@@ -124,7 +113,6 @@ class AdminDashboardController extends Controller
                 ];
             }
 
-            // 6. Categorias
             $cores = ['#142952', '#000000', '#4a5c3a', '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'];
             $textClasses = ['text-azul', 'text-preto', 'text-army', 'text-blue-500', 'text-rose-500', 'text-emerald-500', 'text-amber-500', 'text-purple-500'];
 
@@ -157,7 +145,6 @@ class AdminDashboardController extends Controller
                 $colorIndex++;
             }
 
-            // 7. Top 5 coturnos mais vendidos com fotos
             $topVendasRaw = DB::table('itens_pedidos')
                 ->select('produtos_id', DB::raw('SUM(quantidade) as total_vendas'))
                 ->groupBy('produtos_id')
@@ -245,9 +232,6 @@ class AdminDashboardController extends Controller
         ], 200);
     }
 
-    /**
-     * GET /api/v1/admin/logs: Registros de auditoria (tabela audit_logs).
-     */
     public function logs(): JsonResponse
     {
         $auditLogs = AuditLog::orderBy('id', 'desc')->take(50)->get();
@@ -269,7 +253,6 @@ class AdminDashboardController extends Controller
             ], 200);
         }
 
-        // Fallback dinâmico caso audit_logs ainda não tenha eventos suficientes
         $logs = [];
         $logId = 1;
 
@@ -306,3 +289,4 @@ class AdminDashboardController extends Controller
         ], 200);
     }
 }
+

@@ -21,14 +21,10 @@ class AdminProdutoController extends Controller
         $this->cloudinaryService = $cloudinaryService;
     }
 
-    /**
-     * Endpoint de upload isolado (para testes e homologação).
-     * Salva na pasta coturnos_produtos/ e retorna url e public_id.
-     */
     public function upload(Request $request): JsonResponse
     {
         $request->validate([
-            'image' => 'required|file|image|max:10240', // até 10MB
+            'image' => 'required|file|image|max:10240',
         ]);
 
         $file = $request->file('image');
@@ -41,9 +37,6 @@ class AdminProdutoController extends Controller
         ], 200);
     }
 
-    /**
-     * POST /api/v1/admin/produtos: Cadastra modelo e grade de estoque completa.
-     */
     public function store(Request $request): JsonResponse
     {
         $request->validate([
@@ -51,7 +44,7 @@ class AdminProdutoController extends Controller
             'tipo_do_produto' => 'nullable|string|max:45',
             'marca' => 'nullable|string|max:45',
             'preco' => 'required|numeric|min:0',
-            'grade' => 'nullable|array', // Ex: [{"size": 39, "stock": 10}, {"size": 40, "stock": 15}]
+            'grade' => 'nullable|array',
             'tamanhos' => 'nullable',
             'image' => 'nullable',
         ]);
@@ -77,14 +70,12 @@ class AdminProdutoController extends Controller
                 'excluido' => 'N',
             ]);
 
-            // 1. Grava Preço
             Preco::create([
                 'preco' => $preco,
                 'alteracao' => now(),
                 'produtos_id' => $produto->id,
             ]);
 
-            // 2. Grava Grade de Tamanhos e Estoque
             $grade = $request->input('grade');
             if (is_array($grade) && count($grade) > 0) {
                 foreach ($grade as $item) {
@@ -99,7 +90,6 @@ class AdminProdutoController extends Controller
                     }
                 }
             } else {
-                // Fallback padrão se enviou lista simples de tamanhos ou estoque geral
                 $tamanhosLista = $request->input('tamanhos') ?: [37, 38, 39, 40, 41, 42, 43, 44];
                 if (is_string($tamanhosLista)) {
                     $tamanhosLista = array_map('intval', explode(',', str_replace(['[', ']', ' '], '', $tamanhosLista)));
@@ -118,7 +108,6 @@ class AdminProdutoController extends Controller
                 }
             }
 
-            // 3. Upload organizado no Cloudinary ou URL enviada
             $urlImagem = '/coturno1.jpeg';
             $publicId = null;
 
@@ -155,9 +144,6 @@ class AdminProdutoController extends Controller
         }
     }
 
-    /**
-     * PUT /api/v1/admin/produtos/{id}: Atualiza dados e grade.
-     */
     public function update(Request $request, $id): JsonResponse
     {
         $produto = Produto::find($id);
@@ -227,9 +213,6 @@ class AdminProdutoController extends Controller
         }
     }
 
-    /**
-     * DELETE /api/v1/admin/produtos/{id}: Aplica Soft Delete ($produto->delete() e excluido = 'S').
-     */
     public function destroy($id): JsonResponse
     {
         $produto = Produto::find($id);
@@ -246,7 +229,6 @@ class AdminProdutoController extends Controller
                 'status' => 'inativo',
             ]);
 
-            // Se o model tiver SoftDeletes nativo, chama delete()
             $produto->delete();
 
             DB::commit();
@@ -266,3 +248,4 @@ class AdminProdutoController extends Controller
         }
     }
 }
+

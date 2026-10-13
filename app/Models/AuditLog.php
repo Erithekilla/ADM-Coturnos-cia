@@ -27,3 +27,4 @@ class AuditLog extends Model
         'ip_address',
     ];
 }
+

@@ -11,7 +11,7 @@ class HistoricoPedido extends Model
 
     protected $table = 'historico_pedido';
     protected $primaryKey = 'id';
-    
+
     public $timestamps = false;
 
     protected $fillable = ['status', 'pedido_id', 'data_status', 'observacao', 'historico_pedidocol'];
@@ -20,5 +20,5 @@ class HistoricoPedido extends Model
     {
         return $this->belongsTo(Pedido::class, 'pedido_id', 'id');
     }
-
 }
+

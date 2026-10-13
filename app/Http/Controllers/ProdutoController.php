@@ -15,9 +15,6 @@ use Illuminate\Support\Facades\DB;
 
 class ProdutoController extends Controller
 {
-    /**
-     * Lista todos os produtos com seus relacionamentos (preço, imagem, tamanhos).
-     */
     public function index(Request $request): JsonResponse
     {
         $query = Produto::with(['imagens', 'precos', 'tamanhos'])
@@ -48,9 +45,6 @@ class ProdutoController extends Controller
         ], 200)->header('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
 
-    /**
-     * Cadastra um novo produto com preço, imagem e múltiplos tamanhos.
-     */
     public function store(Request $request): JsonResponse
     {
         $request->validate([
@@ -82,7 +76,6 @@ class ProdutoController extends Controller
         $estoqueTotal = (int) ($request->input('stock') ?: $request->input('estoque') ?: 20);
         $imageUrl = $request->input('image') ?: $request->input('imagem') ?: '/coturno1.jpeg';
 
-        // Trata os tamanhos (pode vir como array [38, 39, 40] ou string)
         $tamanhosRecebidos = $request->input('tamanhos_array') ?: $request->input('sizes') ?: $request->input('tamanhos') ?: [38, 39, 40, 41, 42, 43, 44];
         if (is_string($tamanhosRecebidos)) {
             $tamanhosRecebidos = array_map('intval', explode(',', str_replace(['[', ']', ' '], '', $tamanhosRecebidos)));
@@ -102,14 +95,12 @@ class ProdutoController extends Controller
                 'excluido' => 'N',
             ]);
 
-            // 1. Grava preço
             Preco::create([
                 'preco' => $precoValor,
                 'alteracao' => now(),
                 'produtos_id' => $produto->id,
             ]);
 
-            // 2. Grava múltiplos tamanhos na tabela tamanho_produtos
             if (is_array($tamanhosRecebidos) && count($tamanhosRecebidos) > 0) {
                 $qtdPorTamanho = max(1, (int) round($estoqueTotal / count($tamanhosRecebidos)));
                 foreach ($tamanhosRecebidos as $tam) {
@@ -124,7 +115,6 @@ class ProdutoController extends Controller
                 }
             }
 
-            // 3. Grava imagem do produto
             if (!empty($imageUrl)) {
                 ImagensProduto::create([
                     'url_imagem' => $imageUrl,
@@ -151,9 +141,6 @@ class ProdutoController extends Controller
         }
     }
 
-    /**
-     * Exibe os detalhes de um produto específico.
-     */
     public function show($id): JsonResponse
     {
         $produto = Produto::with(['imagens', 'precos', 'tamanhos'])->find($id);
@@ -171,9 +158,6 @@ class ProdutoController extends Controller
         ], 200);
     }
 
-    /**
-     * Atualiza um produto existente e sincroniza sua grade de tamanhos.
-     */
     public function update(Request $request, $id): JsonResponse
     {
         $produto = Produto::find($id);
@@ -193,7 +177,7 @@ class ProdutoController extends Controller
             $marca = $request->input('brand') ?: $request->input('marca') ?: $produto->marca;
             $descricao = $request->input('description') ?: $request->input('descricao') ?: $produto->descricao;
             $cor = $request->input('color') ?: $request->input('cor') ?: $produto->cor ?: 'Preto';
-            
+
             $ativo = $produto->ativo ?: 'ativo';
             if ($request->has('active') || $request->has('ativo') || $request->has('status')) {
                 $val = $request->input('active') ?: $request->input('ativo') ?: $request->input('status');
@@ -210,7 +194,6 @@ class ProdutoController extends Controller
                 'status' => $ativo,
             ]);
 
-            // Atualiza Preço se enviado
             if ($request->has('price') || $request->has('preco')) {
                 $precoValor = (float) ($request->input('price') ?: $request->input('preco'));
                 Preco::create([
@@ -220,7 +203,6 @@ class ProdutoController extends Controller
                 ]);
             }
 
-            // Atualiza Tamanhos se enviados
             if ($request->has('sizes') || $request->has('tamanhos') || $request->has('tamanhos_array')) {
                 $tamanhosRecebidos = $request->input('tamanhos_array') ?: $request->input('sizes') ?: $request->input('tamanhos');
                 if (is_string($tamanhosRecebidos)) {
@@ -228,7 +210,6 @@ class ProdutoController extends Controller
                 }
 
                 if (is_array($tamanhosRecebidos)) {
-                    // Remove tamanhos antigos e insere os novos
                     TamanhoProduto::where('produtos_id', $produto->id)->delete();
                     $estoqueTotal = (int) ($request->input('stock') ?: $request->input('estoque') ?: 20);
                     $qtdPorTamanho = max(1, (int) round($estoqueTotal / max(1, count($tamanhosRecebidos))));
@@ -246,7 +227,6 @@ class ProdutoController extends Controller
                 }
             }
 
-            // Atualiza Imagem se enviada
             if ($request->has('image') || $request->has('imagem')) {
                 $imageUrl = $request->input('image') ?: $request->input('imagem');
                 if (!empty($imageUrl)) {
@@ -277,9 +257,6 @@ class ProdutoController extends Controller
         }
     }
 
-    /**
-     * Remove o produto e todas as suas dependências em cascata.
-     */
     public function destroy($id): JsonResponse
     {
         $produto = Produto::find($id);
@@ -294,13 +271,10 @@ class ProdutoController extends Controller
         try {
             DB::beginTransaction();
 
-            // 1. Remove itens de carrinho associados a este produto no banco
             ItensCarrinho::where('produtos_id', $id)->delete();
 
-            // 2. Remove vínculos com coleções
             DB::table('colecao_has_produtos')->where('produtos_id', $id)->delete();
 
-            // 3. Atualiza a coluna 'excluido' diretamente na tabela 'produtos' do banco MySQL
             DB::table('produtos')->where('id', $id)->update([
                 'excluido' => 'S',
                 'ativo' => 'inativo',
@@ -324,9 +298,6 @@ class ProdutoController extends Controller
         }
     }
 
-    /**
-     * Formata os dados de um produto para retorno uniforme ao Front-end.
-     */
     private function formatarProduto(Produto $p): array
     {
         $precoRecente = $p->precos->sortByDesc('alteracao')->first();
@@ -365,3 +336,4 @@ class ProdutoController extends Controller
         ];
     }
 }
+

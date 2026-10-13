@@ -11,7 +11,7 @@ class TamanhoProduto extends Model
 
     protected $table = 'tamanho_produtos';
     protected $primaryKey = 'id';
-    
+
     public $timestamps = false;
 
     protected $fillable = ['produtos_id', 'tamanho', 'quantidade'];
@@ -20,5 +20,5 @@ class TamanhoProduto extends Model
     {
         return $this->belongsTo(Produto::class, 'produtos_id', 'id');
     }
-
 }
+
