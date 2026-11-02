@@ -19,6 +19,8 @@ class ImagensProdutoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
+
         $validated = $request->validate([
             'url_imagem' => 'required|string|max:255',
             'produtos_id' => 'required|integer|exists:produtos,id',
@@ -52,6 +54,8 @@ class ImagensProdutoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
+        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
+
         $record = ImagensProduto::find($id);
 
         if (!$record) {

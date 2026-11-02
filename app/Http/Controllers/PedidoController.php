@@ -14,20 +14,20 @@ class PedidoController extends Controller
 
         $data = $pedidos->map(function ($p) {
             return [
-                'id' => $p->id,
+                'id' => $p->hashid,
                 'valorTotal' => (float) $p->valor_total,
                 'status' => $p->status ?: 'Pendente',
                 'statusEnvio' => $p->status ?: 'Pendente',
                 'statusCompra' => 'Aprovado',
                 'dataPedido' => $p->data_pedido ? date('Y-m-d\TH:i:s', strtotime($p->data_pedido)) : date('Y-m-d\TH:i:s'),
-                'usuarioId' => $p->usuario_id,
-                'cliente' => $p->usuario ? ($p->usuario->nome . ' ' . $p->usuario->sobrenome) : 'Cliente #' . $p->usuario_id,
-                'enderecoId' => $p->endereco_id,
+                'usuarioId' => $p->usuario_id ? \App\Models\Usuario::encodeId((int) $p->usuario_id) : null,
+                'cliente' => $p->usuario ? ($p->usuario->nome . ' ' . $p->usuario->sobrenome) : 'Cliente removido',
+                'enderecoId' => $p->endereco_id ? \App\Models\Endereco::encodeId((int) $p->endereco_id) : null,
                 'produtos_do_pedido' => $p->itens->map(function ($item) {
                     return [
                         'produto' => [
-                            'id' => $item->produto?->id,
-                            'nome' => $item->produto?->modelo ?: 'Calçado #' . $item->produtos_id,
+                            'id' => $item->produto?->hashid,
+                            'nome' => $item->produto?->modelo ?: 'Calçado removido',
                             'categoria' => $item->produto?->tipo_do_produto ?: 'Coturno',
                             'preco' => (float) ($item->preco_unitario ?? 0),
                             'status' => 'Em Estoque',
@@ -47,6 +47,8 @@ class PedidoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->decodeHashids($request, ['usuario_id' => \App\Models\Usuario::class, 'endereco_id' => \App\Models\Endereco::class]);
+
         $validated = $request->validate([
             'valor_total' => 'required|numeric',
             'status' => 'required|string|max:45',
@@ -66,7 +68,7 @@ class PedidoController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = Pedido::with(['usuario', 'endereco', 'itens.produto', 'pagamentos', 'historicos'])->find($id);
+        $record = Pedido::findByHashid($id, ['usuario', 'endereco', 'itens.produto', 'pagamentos', 'historicos']);
 
         if (!$record) {
             return response()->json([
@@ -83,7 +85,7 @@ class PedidoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $record = Pedido::with('itens')->find($id);
+        $record = Pedido::findByHashid($id, ['itens']);
 
         if (!$record) {
             return response()->json([
@@ -150,17 +152,13 @@ class PedidoController extends Controller
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\DB::rollBack();
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Erro ao atualizar pedido.',
-                'error_detail' => $e->getMessage()
-            ], 500);
+            return $this->serverError('Erro ao atualizar pedido.', $e);
         }
     }
 
     public function destroy($id): JsonResponse
     {
-        $record = Pedido::find($id);
+        $record = Pedido::findByHashid($id);
 
         if (!$record) {
             return response()->json([

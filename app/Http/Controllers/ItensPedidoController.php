@@ -19,6 +19,8 @@ class ItensPedidoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class, 'pedido_id' => \App\Models\Pedido::class]);
+
         $validated = $request->validate([
             'quantidade' => 'required|integer|min:1',
             'tamanho' => 'required|integer',
@@ -55,6 +57,8 @@ class ItensPedidoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
+        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class, 'pedido_id' => \App\Models\Pedido::class]);
+
         $record = ItensPedido::find($id);
 
         if (!$record) {

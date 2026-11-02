@@ -19,6 +19,8 @@ class ColecaoHasProdutoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
+
         $validated = $request->validate([
             'id_colecao' => 'required|integer|exists:colecao,id_colecao',
             'produtos_id' => 'required|integer|exists:produtos,id',
@@ -52,6 +54,8 @@ class ColecaoHasProdutoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
+        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
+
         $record = ColecaoHasProduto::find($id);
 
         if (!$record) {

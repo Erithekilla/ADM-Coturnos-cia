@@ -19,6 +19,8 @@ class TamanhoProdutoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
+
         $validated = $request->validate([
             'produtos_id' => 'required|integer|exists:produtos,id',
             'tamanho' => 'required|integer',
@@ -53,6 +55,8 @@ class TamanhoProdutoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
+        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
+
         $record = TamanhoProduto::find($id);
 
         if (!$record) {

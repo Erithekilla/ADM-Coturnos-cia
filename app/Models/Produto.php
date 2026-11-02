@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Model;
 
 class Produto extends Model
 {
-    use HasFactory;
+    use HasFactory, HasHashid;
 
     protected $table = 'produtos';
     protected $primaryKey = 'id';

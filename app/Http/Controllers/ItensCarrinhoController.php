@@ -19,6 +19,8 @@ class ItensCarrinhoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
+
         $validated = $request->validate([
             'carrinho_id_carrinho' => 'required|integer|exists:carrinho,id_carrinho',
             'produtos_id' => 'required|integer|exists:produtos,id',
@@ -54,6 +56,8 @@ class ItensCarrinhoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
+        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
+
         $record = ItensCarrinho::find($id);
 
         if (!$record) {

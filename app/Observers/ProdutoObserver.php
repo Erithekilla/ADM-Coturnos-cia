@@ -3,57 +3,35 @@
 namespace App\Observers;
 
 use App\Models\Produto;
-use App\Models\AuditLog;
+use App\Services\AuditLogger;
 
 class ProdutoObserver
 {
-    private function getAuthor(): string
-    {
-        $user = request()->user();
-        if ($user) {
-            return ($user->nome ?? 'Usuário') . ' (' . ($user->email ?? '') . ')';
-        }
-        return 'Administrador';
-    }
-
     public function created(Produto $produto): void
     {
-        AuditLog::create([
-            'autor' => $this->getAuthor(),
-            'acao' => 'PRODUCT_CREATE',
-            'tabela' => 'produtos',
-            'registro_id' => $produto->id,
-            'ip' => request()->ip(),
-            'detalhes' => json_encode([
-                'modelo' => $produto->modelo,
-                'tipo' => $produto->tipo_do_produto,
-                'marca' => $produto->marca,
-            ]),
-        ]);
+        AuditLogger::record('PRODUCT_CREATE', 'produtos', $produto->id, null, [
+            'modelo' => $produto->modelo,
+            'tipo'   => $produto->tipo_do_produto,
+            'marca'  => $produto->marca,
+        ], 'Produto cadastrado: ' . ($produto->modelo ?? $produto->id));
     }
 
     public function updated(Produto $produto): void
     {
-        AuditLog::create([
-            'autor' => $this->getAuthor(),
-            'acao' => 'PRODUCT_UPDATE',
-            'tabela' => 'produtos',
-            'registro_id' => $produto->id,
-            'ip' => request()->ip(),
-            'detalhes' => json_encode($produto->getChanges()),
-        ]);
+        $changes = collect($produto->getChanges())->except(['updated_at'])->all();
+        if (empty($changes)) {
+            return;
+        }
+
+        $old = array_intersect_key($produto->getOriginal(), $changes);
+        $acao = ($changes['excluido'] ?? null) === 'S' ? 'PRODUCT_DELETE' : 'PRODUCT_UPDATE';
+
+        AuditLogger::record($acao, 'produtos', $produto->id, $old, $changes);
     }
 
     public function deleted(Produto $produto): void
     {
-        AuditLog::create([
-            'autor' => $this->getAuthor(),
-            'acao' => 'PRODUCT_DELETE',
-            'tabela' => 'produtos',
-            'registro_id' => $produto->id,
-            'ip' => request()->ip(),
-            'detalhes' => 'Produto removido/arquivado: ' . ($produto->modelo ?? $produto->id),
-        ]);
+        AuditLogger::record('PRODUCT_DELETE', 'produtos', $produto->id, ['modelo' => $produto->modelo], null,
+            'Produto removido: ' . ($produto->modelo ?? $produto->id));
     }
 }
-

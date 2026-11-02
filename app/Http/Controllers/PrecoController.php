@@ -19,6 +19,8 @@ class PrecoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
+
         $validated = $request->validate([
             'preco' => 'required|numeric',
             'alteracao' => 'required|date',
@@ -53,6 +55,8 @@ class PrecoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
+        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
+
         $record = Preco::find($id);
 
         if (!$record) {

@@ -19,6 +19,8 @@ class HistoricoPedidoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->decodeHashids($request, ['pedido_id' => \App\Models\Pedido::class]);
+
         $validated = $request->validate([
             'status' => 'required|integer',
             'pedido_id' => 'required|integer|exists:pedido,id',
@@ -55,6 +57,8 @@ class HistoricoPedidoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
+        $this->decodeHashids($request, ['pedido_id' => \App\Models\Pedido::class]);
+
         $record = HistoricoPedido::find($id);
 
         if (!$record) {

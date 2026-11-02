@@ -19,6 +19,8 @@ class PagamentoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->decodeHashids($request, ['pedido_id' => \App\Models\Pedido::class]);
+
         $validated = $request->validate([
             'data_pagamento' => 'required|date',
             'pedido_id' => 'required|integer|exists:pedido,id',
@@ -38,7 +40,7 @@ class PagamentoController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = Pagamento::with(['pedido'])->find($id);
+        $record = Pagamento::findByHashid($id, ['pedido']);
 
         if (!$record) {
             return response()->json([
@@ -55,7 +57,9 @@ class PagamentoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $record = Pagamento::find($id);
+        $this->decodeHashids($request, ['pedido_id' => \App\Models\Pedido::class]);
+
+        $record = Pagamento::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -83,7 +87,7 @@ class PagamentoController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $record = Pagamento::find($id);
+        $record = Pagamento::findByHashid($id);
 
         if (!$record) {
             return response()->json([

@@ -19,6 +19,8 @@ class EnderecoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->decodeHashids($request, ['usuario_id' => \App\Models\Usuario::class]);
+
         $validated = $request->validate([
             'cep' => 'required|string|max:8',
             'rua' => 'required|string|max:45',
@@ -42,7 +44,7 @@ class EnderecoController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = Endereco::with(['usuario'])->find($id);
+        $record = Endereco::findByHashid($id, ['usuario']);
 
         if (!$record) {
             return response()->json([
@@ -59,7 +61,9 @@ class EnderecoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $record = Endereco::find($id);
+        $this->decodeHashids($request, ['usuario_id' => \App\Models\Usuario::class]);
+
+        $record = Endereco::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -91,7 +95,7 @@ class EnderecoController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $record = Endereco::find($id);
+        $record = Endereco::findByHashid($id);
 
         if (!$record) {
             return response()->json([

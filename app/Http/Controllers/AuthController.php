@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Usuario;
 use App\Models\Endereco;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
@@ -11,6 +12,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 
+/**
+ * Autenticação stateless via Bearer Token (Laravel Sanctum).
+ * O token é guardado no banco apenas como hash SHA-256; o texto puro é
+ * devolvido ao cliente uma única vez, no login/cadastro.
+ */
 class AuthController extends Controller
 {
     public function register(Request $request): JsonResponse
@@ -27,6 +33,7 @@ class AuthController extends Controller
             'bairro' => 'required|string|max:45',
             'cidade' => 'required|string|max:45',
             'estado' => 'required|string|max:45',
+            'telefone' => 'nullable|string|max:20',
             'senha' => 'required|string|min:8',
         ], [
             'nome.required' => 'O nome completo é obrigatório.',
@@ -52,8 +59,16 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $cpfLimpo = preg_replace('/\D/', '', $request->cpf);
+        $cpfLimpo = Usuario::cleanCpf($request->cpf);
         $cepLimpo = preg_replace('/\D/', '', $request->cep);
+
+        if (!$cpfLimpo || strlen($cpfLimpo) !== 11) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'CPF inválido.',
+                'errors' => ['cpf' => ['Informe um CPF com 11 dígitos.']]
+            ], 422);
+        }
 
         if (Usuario::where('email', $request->email)->exists()) {
             return response()->json([
@@ -63,7 +78,8 @@ class AuthController extends Controller
             ], 422);
         }
 
-        if (!empty($cpfLimpo) && Usuario::where('cpf', $cpfLimpo)->exists()) {
+        // Busca por Blind Index (cpf_hash), já que o CPF está cifrado no banco.
+        if (Usuario::findByCpf($cpfLimpo)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Este CPF já está cadastrado.',
@@ -75,12 +91,11 @@ class AuthController extends Controller
         $primeiroNome = $nomePartes[0];
         $sobrenome = isset($nomePartes[1]) ? trim($nomePartes[1]) : '';
 
-        $nascimentoFormatado = null;
         try {
             if (str_contains($request->nascimento, '/')) {
-                $nascimentoFormatado = Carbon::createFromFormat('d/m/Y', $request->nascimento)->format('Y-m-d H:i:s');
+                $nascimentoFormatado = Carbon::createFromFormat('d/m/Y', $request->nascimento)->format('Y-m-d');
             } else {
-                $nascimentoFormatado = Carbon::parse($request->nascimento)->format('Y-m-d H:i:s');
+                $nascimentoFormatado = Carbon::parse($request->nascimento)->format('Y-m-d');
             }
         } catch (\Exception $e) {
             return response()->json([
@@ -93,55 +108,50 @@ class AuthController extends Controller
         try {
             DB::beginTransaction();
 
-            $usuario = Usuario::create([
-                'nome' => substr($primeiroNome, 0, 45),
-                'sobrenome' => substr($sobrenome, 0, 45),
-                'cpf' => substr($cpfLimpo, 0, 45),
+            $usuario = new Usuario([
+                'nome' => mb_substr($primeiroNome, 0, 45),
+                'sobrenome' => mb_substr($sobrenome, 0, 45),
+                'cpf' => $cpfLimpo,
+                'telefone' => $request->telefone ? preg_replace('/\D/', '', $request->telefone) : null,
                 'data_nascimento' => $nascimentoFormatado,
                 'email' => $request->email,
                 'data_criacao' => now(),
                 'senha' => Hash::make($request->senha),
                 'google_id' => null,
                 'provider' => 'local',
-                'role' => 'cliente',
             ]);
+            // Papel e status NUNCA vêm do cliente.
+            $usuario->forceFill(['role' => 'cliente', 'status' => 'ativo', 'excluido' => 'N'])->save();
 
-            $endereco = Endereco::create([
+            Endereco::create([
                 'cep' => substr($cepLimpo, 0, 8),
-                'rua' => substr($request->logradouro, 0, 45),
-                'bairro' => substr($request->bairro, 0, 45),
-                'cidade' => substr($request->cidade, 0, 45),
-                'estado' => substr($request->estado, 0, 45),
-                'numero' => substr($request->numero, 0, 45),
-                'complemento' => !empty($request->complemento) ? substr($request->complemento, 0, 45) : null,
+                'rua' => mb_substr($request->logradouro, 0, 45),
+                'bairro' => mb_substr($request->bairro, 0, 45),
+                'cidade' => mb_substr($request->cidade, 0, 45),
+                'estado' => mb_substr($request->estado, 0, 45),
+                'numero' => mb_substr($request->numero, 0, 45),
+                'complemento' => !empty($request->complemento) ? mb_substr($request->complemento, 0, 45) : null,
                 'padrao' => 1,
                 'usuario_id' => $usuario->id,
             ]);
 
-            DB::commit();
+            $token = $usuario->createToken('cliente', ['cliente'], $this->tokenExpiration())->plainTextToken;
 
-            $token = encrypt([
-                'user_id' => $usuario->id,
-                'email' => $usuario->email,
-                'timestamp' => time()
-            ]);
+            DB::commit();
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'Cadastro realizado com sucesso!',
                 'data' => [
-                    'usuario' => $usuario->load('enderecos'),
+                    'usuario' => $this->usuarioPayload($usuario->load('enderecos')),
                     'token' => $token,
+                    'token_type' => 'Bearer',
                 ]
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Falha ao realizar cadastro. Tente novamente.',
-                'error_detail' => $e->getMessage()
-            ], 500);
+            return $this->serverError('Falha ao realizar cadastro. Tente novamente.', $e);
         }
     }
 
@@ -166,7 +176,14 @@ class AuthController extends Controller
 
         $usuario = Usuario::where('email', $request->email)->first();
 
-        if (!$usuario || !Hash::check($request->senha, $usuario->senha)) {
+        // Sempre executa Hash::check para não revelar, pelo tempo de resposta, se o e-mail existe.
+        $hash = $usuario?->senha ?: '$2y$12$usesomesillystringfore7hnbRJHxXVLeakoG8K30oukPsA.ztMG';
+        $senhaOk = Hash::check($request->senha, $hash) && $usuario !== null;
+
+        if (!$senhaOk) {
+            AuditLogger::record('AUTH_LOGIN_FAILED', 'usuario', $usuario?->id ?? 0, null, ['email' => $request->email],
+                'Tentativa de login com credenciais inválidas: ' . AuditLogger::maskEmail((string) $request->email));
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'E-mail ou senha incorretos.',
@@ -176,76 +193,84 @@ class AuthController extends Controller
             ], 401);
         }
 
-        $token = encrypt([
-            'user_id' => $usuario->id,
-            'email' => $usuario->email,
-            'timestamp' => time()
-        ]);
+        if (!$usuario->isActive()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Conta suspensa, inativa ou desativada pelo sistema.'
+            ], 403);
+        }
+
+        $abilities = $usuario->isAdmin() ? ['admin'] : ['cliente'];
+        $token = $usuario->createToken($usuario->isAdmin() ? 'painel-admin' : 'cliente', $abilities, $this->tokenExpiration());
+
+        if ($usuario->isAdmin()) {
+            AuditLogger::record('AUTH_LOGIN', 'usuario', $usuario->id, null, null,
+                'Login administrativo: ' . AuditLogger::maskEmail((string) $usuario->email), $usuario);
+        }
 
         return response()->json([
             'status' => 'success',
             'message' => 'Login realizado com sucesso!',
             'data' => [
-                'usuario' => $usuario->load('enderecos'),
-                'token' => $token,
+                'usuario' => $this->usuarioPayload($usuario->load('enderecos')),
+                'token' => $token->plainTextToken,
+                'token_type' => 'Bearer',
+                'abilities' => $abilities,
+                'expires_at' => $token->accessToken->expires_at?->toIso8601String(),
             ]
         ], 200);
     }
 
     public function me(Request $request): JsonResponse
     {
-        $token = $request->bearerToken() ?: $request->header('Authorization') ?: $request->input('token');
+        $usuario = $request->user()->load('enderecos');
 
-        if (!$token) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Token não fornecido.'
-            ], 401);
-        }
-
-        if (str_starts_with($token, 'Bearer ')) {
-            $token = substr($token, 7);
-        }
-
-        try {
-            $payload = decrypt($token);
-
-            if (!isset($payload['user_id'])) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Token inválido.'
-                ], 401);
-            }
-
-            $usuario = Usuario::with('enderecos')->find($payload['user_id']);
-
-            if (!$usuario) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Usuário não encontrado.'
-                ], 404);
-            }
-
-            return response()->json([
-                'status' => 'success',
-                'data' => [
-                    'usuario' => $usuario
-                ]
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Sessão expirada ou inválida.'
-            ], 401);
-        }
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'usuario' => $this->usuarioPayload($usuario),
+                'abilities' => $usuario->currentAccessToken()?->abilities ?? [],
+            ]
+        ], 200);
     }
 
-    public function logout(): JsonResponse
+    public function logout(Request $request): JsonResponse
     {
+        $usuario = $request->user();
+        $token = $usuario->currentAccessToken();
+
+        if ($token && method_exists($token, 'delete')) {
+            $token->delete();
+        }
+
+        if ($usuario->isAdmin()) {
+            AuditLogger::record('AUTH_LOGOUT', 'usuario', $usuario->id, null, null, 'Logout administrativo', $usuario);
+        }
+
         return response()->json([
             'status' => 'success',
             'message' => 'Desconectado com sucesso!'
         ], 200);
     }
-}
 
+    private function tokenExpiration(): ?\DateTimeInterface
+    {
+        $minutes = (int) config('sanctum.expiration');
+
+        return $minutes > 0 ? now()->addMinutes($minutes) : null;
+    }
+
+    private function usuarioPayload(Usuario $usuario): array
+    {
+        return [
+            'id' => $usuario->hashid,
+            'nome' => $usuario->nome,
+            'sobrenome' => $usuario->sobrenome,
+            'email' => $usuario->email,
+            'role' => $usuario->role,
+            'status' => $usuario->status ?: 'ativo',
+            'provider' => $usuario->provider,
+            'enderecos' => $usuario->relationLoaded('enderecos') ? $usuario->enderecos->toArray() : [],
+        ];
+    }
+}

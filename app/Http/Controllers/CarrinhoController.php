@@ -22,6 +22,8 @@ class CarrinhoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->decodeHashids($request, ['usuario_id' => \App\Models\Usuario::class]);
+
         $validated = $request->validate([
             'usuario_id' => 'required|integer|exists:usuario,id',
             'criado_em' => 'required|date',
@@ -56,6 +58,8 @@ class CarrinhoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
+        $this->decodeHashids($request, ['usuario_id' => \App\Models\Usuario::class]);
+
         $record = Carrinho::find($id);
 
         if (!$record) {
@@ -127,6 +131,8 @@ class CarrinhoController extends Controller
             ], 401);
         }
 
+        $this->decodeHashids($request, ['produto_id' => Produto::class]);
+
         $request->validate([
             'produto_id' => 'required|integer|exists:produtos,id',
             'quantidade' => 'nullable|integer|min:1',
@@ -173,6 +179,8 @@ class CarrinhoController extends Controller
                 'message' => 'Não autenticado.'
             ], 401);
         }
+
+        $this->decodeHashids($request, ['produto_id' => Produto::class]);
 
         $request->validate([
             'produto_id' => 'required|integer|exists:produtos,id',
@@ -225,6 +233,8 @@ class CarrinhoController extends Controller
                 'message' => 'Não autenticado.'
             ], 401);
         }
+
+        $this->decodeHashids($request, ['produto_id' => Produto::class]);
 
         $request->validate([
             'produto_id' => 'required|integer',
@@ -288,7 +298,7 @@ class CarrinhoController extends Controller
 
         if (is_array($itens)) {
             foreach ($itens as $it) {
-                $pId = (int) ($it['id'] ?? 0);
+                $pId = (int) Produto::decodeHashid($it['id'] ?? null);
                 $qtd = (int) ($it['quantity'] ?? 1);
                 $tam = (int) ($it['size'] ?? 40);
 
@@ -354,14 +364,14 @@ class CarrinhoController extends Controller
             $tamanho = $item->tamanho ?: 40;
 
             $itemObj = [
-                'id' => $produto->id,
+                'id' => $produto->hashid,
                 'name' => $produto->modelo,
                 'price' => (float) $preco,
                 'quantity' => (int) $item->quantidade,
                 'size' => $tamanho,
                 'color' => $cor,
                 'image' => $imagem,
-                'cartKey' => "{$produto->id}-{$tamanho}-{$cor}",
+                'cartKey' => "{$produto->hashid}-{$tamanho}-{$cor}",
             ];
 
             $subtotal += ($itemObj['price'] * $itemObj['quantity']);
@@ -376,30 +386,15 @@ class CarrinhoController extends Controller
         ];
     }
 
-    private function getAuthenticatedUser(Request $request)
+    /**
+     * Usuário dono do token Sanctum (rotas sob auth:sanctum).
+     * Escopo obrigatório: nunca aceita usuario_id vindo do cliente (anti-IDOR).
+     */
+    private function getAuthenticatedUser(Request $request): ?Usuario
     {
-        $token = $request->bearerToken() ?: $request->header('Authorization') ?: $request->input('token');
+        $user = $request->user();
 
-        if (!$token) {
-            if ($request->has('usuario_id')) {
-                return Usuario::find($request->usuario_id);
-            }
-            return null;
-        }
-
-        if (str_starts_with($token, 'Bearer ')) {
-            $token = substr($token, 7);
-        }
-
-        try {
-            $payload = decrypt($token);
-            if (!isset($payload['user_id'])) {
-                return null;
-            }
-            return Usuario::find($payload['user_id']);
-        } catch (\Exception $e) {
-            return null;
-        }
+        return $user instanceof Usuario && $user->isActive() ? $user : null;
     }
 }
 

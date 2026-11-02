@@ -133,17 +133,13 @@ class ProdutoController extends Controller
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Falha ao salvar produto no banco de dados.',
-                'error_detail' => $e->getMessage(),
-            ], 500);
+            return $this->serverError('Falha ao salvar produto no banco de dados.', $e);
         }
     }
 
     public function show($id): JsonResponse
     {
-        $produto = Produto::with(['imagens', 'precos', 'tamanhos'])->find($id);
+        $produto = Produto::findByHashid($id, ['imagens', 'precos', 'tamanhos']);
 
         if (!$produto) {
             return response()->json([
@@ -160,7 +156,7 @@ class ProdutoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $produto = Produto::find($id);
+        $produto = Produto::findByHashid($id);
 
         if (!$produto) {
             return response()->json([
@@ -249,17 +245,13 @@ class ProdutoController extends Controller
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Falha ao atualizar produto.',
-                'error_detail' => $e->getMessage(),
-            ], 500);
+            return $this->serverError('Falha ao atualizar produto.', $e);
         }
     }
 
     public function destroy($id): JsonResponse
     {
-        $produto = Produto::find($id);
+        $produto = Produto::findByHashid($id);
 
         if (!$produto) {
             return response()->json([
@@ -271,30 +263,27 @@ class ProdutoController extends Controller
         try {
             DB::beginTransaction();
 
-            ItensCarrinho::where('produtos_id', $id)->delete();
+            ItensCarrinho::where('produtos_id', $produto->id)->delete();
 
-            DB::table('colecao_has_produtos')->where('produtos_id', $id)->delete();
+            DB::table('colecao_has_produtos')->where('produtos_id', $produto->id)->delete();
 
-            DB::table('produtos')->where('id', $id)->update([
+            // Via Eloquent (e não DB::table) para que o ProdutoObserver registre a auditoria.
+            $produto->forceFill([
                 'excluido' => 'S',
                 'ativo' => 'inativo',
                 'status' => 'inativo',
-            ]);
+            ])->save();
 
             DB::commit();
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'Produto excluído com sucesso do banco de dados!',
-                'data' => ['id' => (int) $id]
+                'data' => ['id' => $produto->hashid]
             ], 200)->header('Cache-Control', 'no-cache, no-store, must-revalidate');
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Erro ao excluir produto no banco de dados.',
-                'error_detail' => $e->getMessage(),
-            ], 500);
+            return $this->serverError('Erro ao excluir produto no banco de dados.', $e);
         }
     }
 
@@ -318,7 +307,7 @@ class ProdutoController extends Controller
         $isAtivo = strtolower((string)$p->ativo) !== 'inativo' && strtolower((string)$p->status) !== 'inativo';
 
         return [
-            'id' => $p->id,
+            'id' => $p->hashid,
             'name' => $p->modelo,
             'productType' => $p->tipo_do_produto,
             'model' => $p->modelo,

@@ -136,17 +136,13 @@ class AdminProdutoController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Erro ao cadastrar produto.',
-                'error_detail' => $e->getMessage()
-            ], 500);
+            return $this->serverError('Erro ao cadastrar produto.', $e);
         }
     }
 
     public function update(Request $request, $id): JsonResponse
     {
-        $produto = Produto::find($id);
+        $produto = Produto::findByHashid($id);
         if (!$produto) {
             return response()->json(['status' => 'error', 'message' => 'Produto não encontrado.'], 404);
         }
@@ -205,17 +201,13 @@ class AdminProdutoController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Erro ao atualizar produto.',
-                'error_detail' => $e->getMessage()
-            ], 500);
+            return $this->serverError('Erro ao atualizar produto.', $e);
         }
     }
 
     public function destroy($id): JsonResponse
     {
-        $produto = Produto::find($id);
+        $produto = Produto::findByHashid($id);
         if (!$produto) {
             return response()->json(['status' => 'error', 'message' => 'Produto não encontrado.'], 404);
         }
@@ -240,11 +232,7 @@ class AdminProdutoController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Erro ao remover produto.',
-                'error_detail' => $e->getMessage()
-            ], 500);
+            return $this->serverError('Erro ao remover produto.', $e);
         }
     }
 }

@@ -2,50 +2,27 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Presenters\UsuarioPresenter;
 use App\Models\Usuario;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class UsuarioController extends Controller
 {
     public function index(): JsonResponse
     {
-        $usuarios = Usuario::with(['enderecos', 'carrinhos', 'pedidos'])
+        $usuarios = Usuario::with('enderecos')
             ->where(function ($q) {
                 $q->whereNull('excluido')->orWhereRaw("TRIM(UPPER(COALESCE(excluido, 'N'))) != 'S'");
             })
             ->orderBy('id', 'desc')
             ->get();
 
-        $data = $usuarios->map(function ($u) {
-            $end = $u->enderecos->first();
-            $isAtivo = strtolower((string)($u->status ?? 'ativo')) !== 'inativo';
-            return [
-                'id' => $u->id,
-                'nome' => $u->nome,
-                'sobrenome' => $u->sobrenome,
-                'firstName' => $u->nome,
-                'lastName' => $u->sobrenome,
-                'email' => $u->email,
-                'cpf' => $u->cpf ?? '',
-                'phone' => '(11) 9' . str_pad((string)($u->id * 1111 % 10000), 4, '0', STR_PAD_LEFT) . '-' . str_pad((string)($u->id * 2222 % 10000), 4, '0', STR_PAD_LEFT),
-                'cep' => $end->cep ?? '01001-000',
-                'sreet' => $end->rua ?? 'Rua Principal',
-                'sreet_number' => $end->numero ?? '100',
-                'block' => $end->bairro ?? 'Centro',
-                'city' => $end->cidade ?? 'São Paulo',
-                'state' => $end->estado ?? 'SP',
-                'type' => strtolower($u->role) === 'admin' ? 'Administrador' : 'Cliente',
-                'role' => $u->role,
-                'provider' => ucfirst($u->provider ?? 'Local'),
-                'status' => $isAtivo ? 'ativo' : 'inativo',
-                'statusLabel' => $isAtivo ? 'Ativo' : 'Inativo',
-                'createdAt' => $u->data_criacao ? date('d/m/Y', strtotime($u->data_criacao)) : date('d/m/Y'),
-            ];
-        });
+        $data = $usuarios->map(fn (Usuario $u) => UsuarioPresenter::listItem($u));
 
         return response()->json([
             'status' => 'success',
@@ -59,10 +36,10 @@ class UsuarioController extends Controller
         $sobrenome = $request->input('sobrenome') ?: $request->input('lastName');
         $email = $request->input('email');
         $cpf = $request->input('cpf');
+        $phone = $request->input('phone') ?: $request->input('telefone');
         $type = $request->input('type');
-        $role = $request->input('role') ?: (strtolower($type) === 'administrador' ? 'admin' : 'cliente');
+        $role = $request->input('role') ?: (strtolower($type ?? '') === 'administrador' ? 'admin' : 'cliente');
         $provider = $request->input('provider') ?: 'local';
-        $senha = $request->input('senha') ?: $request->input('password') ?: '12345678';
 
         if (!$nome || !$sobrenome || !$email) {
             return response()->json([
@@ -71,32 +48,51 @@ class UsuarioController extends Controller
             ], 422);
         }
 
-        $statusRaw = $request->input('status') ?: 'ativo';
-        $status = strtolower((string)$statusRaw) === 'inativo' ? 'inativo' : 'ativo';
+        $senhaFornecida = $request->input('senha') ?: $request->input('password');
+        $senhaTemporaria = null;
+        if (empty($senhaFornecida)) {
+            $senhaTemporaria = Str::password(16, symbols: false);
+            $senhaFinal = $senhaTemporaria;
+        } else {
+            $senhaFinal = $senhaFornecida;
+        }
 
-        $record = Usuario::create([
+        $statusRaw = $request->input('status') ?: 'ativo';
+        $status = strtolower((string) $statusRaw) === 'inativo' ? 'inativo' : 'ativo';
+
+        $record = new Usuario([
             'nome' => $nome,
             'sobrenome' => $sobrenome,
             'cpf' => $cpf,
+            'telefone' => $phone,
             'email' => $email,
             'data_criacao' => now(),
-            'senha' => Hash::make($senha),
+            'senha' => Hash::make($senhaFinal),
             'provider' => strtolower($provider),
+        ]);
+
+        $record->forceFill([
             'role' => $role,
             'status' => $status,
             'excluido' => 'N',
-        ]);
+        ])->save();
 
-        return response()->json([
+        $response = [
             'status' => 'success',
             'message' => 'Usuário criado com sucesso!',
-            'data' => $record
-        ], 201);
+            'data' => UsuarioPresenter::listItem($record),
+        ];
+
+        if ($senhaTemporaria !== null) {
+            $response['senha_temporaria'] = $senhaTemporaria;
+        }
+
+        return response()->json($response, 201);
     }
 
     public function show($id): JsonResponse
     {
-        $record = Usuario::with(['enderecos', 'carrinhos', 'pedidos'])->find($id);
+        $record = Usuario::findByHashid($id, ['enderecos', 'carrinhos', 'pedidos']);
 
         if (!$record) {
             return response()->json([
@@ -107,13 +103,13 @@ class UsuarioController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $record
+            'data' => UsuarioPresenter::detail($record)
         ], 200);
     }
 
     public function update(Request $request, $id): JsonResponse
     {
-        $record = Usuario::find($id);
+        $record = Usuario::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -125,47 +121,50 @@ class UsuarioController extends Controller
         $nome = $request->input('nome') ?: $request->input('firstName') ?: $record->nome;
         $sobrenome = $request->input('sobrenome') ?: $request->input('lastName') ?: $record->sobrenome;
         $email = $request->input('email') ?: $record->email;
-        $cpf = $request->has('cpf') ? $request->input('cpf') : $record->cpf;
+        $phone = $request->has('phone') ? $request->input('phone') : ($request->has('telefone') ? $request->input('telefone') : $record->telefone);
 
-        $role = $record->role;
-        if ($request->has('role')) {
-            $role = $request->input('role');
-        } elseif ($request->has('type')) {
-            $role = strtolower($request->input('type')) === 'administrador' ? 'admin' : 'cliente';
+        if ($request->has('cpf')) {
+            $novoCpf = (string) $request->input('cpf');
+            // Ignora valor mascarado das listagens
+            if (!str_contains($novoCpf, '*')) {
+                $limpoNovo = Usuario::cleanCpf($novoCpf);
+                $limpoAtual = Usuario::cleanCpf($record->cpf);
+
+                if (!empty($limpoAtual) && $limpoAtual !== $limpoNovo) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'O CPF não pode ser alterado após o cadastro.',
+                        'errors' => ['cpf' => ['O CPF não pode ser alterado após o cadastro.']]
+                    ], 422);
+                }
+
+                if (empty($limpoAtual)) {
+                    $record->cpf = $novoCpf;
+                }
+            }
         }
 
-        $provider = $request->input('provider') ?: $record->provider;
+        $record->nome = $nome;
+        $record->sobrenome = $sobrenome;
+        $record->email = $email;
+        $record->telefone = $phone;
 
-        $status = $record->status ?: 'ativo';
-        if ($request->has('status')) {
-            $status = strtolower((string)$request->input('status')) === 'inativo' ? 'inativo' : 'ativo';
+        if ($request->filled('senha') || $request->filled('password')) {
+            $record->senha = Hash::make($request->input('senha') ?: $request->input('password'));
         }
 
-        $record->update([
-            'nome' => $nome,
-            'sobrenome' => $sobrenome,
-            'email' => $email,
-            'cpf' => $cpf,
-            'role' => $role,
-            'provider' => strtolower($provider),
-            'status' => $status,
-        ]);
-
-        if ($request->filled('senha')) {
-            $record->senha = Hash::make($request->input('senha'));
-            $record->save();
-        }
+        $record->save();
 
         return response()->json([
             'status' => 'success',
             'message' => 'Usuário atualizado com sucesso!',
-            'data' => $record
+            'data' => UsuarioPresenter::listItem($record)
         ], 200);
     }
 
     public function destroy($id): JsonResponse
     {
-        $record = Usuario::find($id);
+        $record = Usuario::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -177,13 +176,17 @@ class UsuarioController extends Controller
         try {
             DB::beginTransaction();
 
-            DB::table('usuario')->where('id', $id)->update([
+            $record->forceFill([
                 'excluido' => 'S',
                 'status' => 'inativo',
-            ]);
+            ])->save();
 
-            foreach ($record->carrinhos as $carrinho) {
-                DB::table('itens_carrinho')->where('carrinho_id_carrinho', $carrinho->id_carrinho)->delete();
+            if ($record->relationLoaded('carrinhos') || method_exists($record, 'carrinhos')) {
+                foreach ($record->carrinhos as $carrinho) {
+                    if (Schema::hasTable('itens_carrinho')) {
+                        DB::table('itens_carrinho')->where('carrinho_id_carrinho', $carrinho->id_carrinho)->delete();
+                    }
+                }
             }
 
             DB::commit();
@@ -202,4 +205,3 @@ class UsuarioController extends Controller
         }
     }
 }
-

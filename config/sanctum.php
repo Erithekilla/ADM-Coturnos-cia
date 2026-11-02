@@ -13,9 +13,11 @@ return [
 
     ))),
 
-    'guard' => ['web'],
+    // API 100% stateless: apenas Bearer tokens (sem sessão/cookie).
+    'guard' => [],
 
-    'expiration' => null,
+    // Tempo de vida dos tokens em minutos (padrão: 8 horas).
+    'expiration' => (int) env('SANCTUM_EXPIRATION', 480),
 
     'token_prefix' => env('SANCTUM_TOKEN_PREFIX', ''),
 

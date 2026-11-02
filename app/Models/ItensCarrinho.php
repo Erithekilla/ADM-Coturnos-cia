@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Concerns\HasHashidForeignKeys;
 use Illuminate\Database\Eloquent\Model;
 
 class ItensCarrinho extends Model
 {
-    use HasFactory;
+    use HasFactory, HasHashidForeignKeys;
 
     protected $table = 'itens_carrinho';
     protected $primaryKey = 'carrinho_id_carrinho';
@@ -15,6 +16,14 @@ class ItensCarrinho extends Model
     public $timestamps = false;
 
     protected $fillable = ['carrinho_id_carrinho', 'produtos_id', 'quantidade', 'tamanho'];
+
+    /** IDs públicos ofuscados também nas chaves estrangeiras do JSON. */
+    public function hashidForeignKeys(): array
+    {
+        return [
+            'produtos_id' => Produto::class,
+        ];
+    }
 
     public function carrinho()
     {

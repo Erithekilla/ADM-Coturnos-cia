@@ -2,28 +2,40 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Presenters\UsuarioPresenter;
 use App\Models\Usuario;
+use App\Services\AuditLogger;
+use App\Services\UserPrivilegeService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class AdminUsuarioController extends Controller
 {
+    public function __construct(private UserPrivilegeService $privileges)
+    {
+    }
+
     public function index(Request $request): JsonResponse
     {
-        $query = Usuario::where(function ($q) {
+        $query = Usuario::with('enderecos')->where(function ($q) {
             $q->whereNull('excluido')->orWhereRaw("TRIM(UPPER(COALESCE(excluido, 'N'))) != 'S'");
         })->orderBy('id', 'desc');
 
         if ($request->filled('search')) {
-            $search = $request->input('search');
+            $search = (string) $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('nome', 'like', "%{$search}%")
                   ->orWhere('sobrenome', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%");
+
+                // CPF cifrado: busca exata pelo Blind Index.
+                if ($hash = Usuario::generateCpfHash($search)) {
+                    $q->orWhere('cpf_hash', $hash);
+                }
             });
         }
 
-        $usuarios = $query->get()->makeHidden(['senha']);
+        $usuarios = $query->get()->map(fn (Usuario $u) => UsuarioPresenter::listItem($u));
 
         return response()->json([
             'status' => 'success',
@@ -32,52 +44,71 @@ class AdminUsuarioController extends Controller
         ], 200);
     }
 
-    public function toggleStatus($id): JsonResponse
+    /** Ficha completa com dados sensíveis descriptografados (acesso auditado). */
+    public function show(Request $request, $id): JsonResponse
     {
-        $usuario = Usuario::find($id);
+        $usuario = Usuario::findByHashid($id, ['enderecos']);
 
         if (!$usuario) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Usuário não encontrado.'
-            ], 404);
+            return $this->notFound('Usuário não encontrado.');
         }
 
-        $statusAtual = strtolower((string)$usuario->status);
-        $novoStatus = ($statusAtual === 'ativo') ? 'inativo' : 'ativo';
-
-        $usuario->status = $novoStatus;
-        $usuario->save();
+        AuditLogger::record('SENSITIVE_DATA_VIEW', 'usuario', $usuario->id, null, null,
+            'Visualização de dados pessoais (CPF/telefone/nascimento) do usuário ' . $usuario->hashid);
 
         return response()->json([
             'status' => 'success',
-            'message' => "Status do usuário #{$usuario->id} alterado para '{$novoStatus}'.",
-            'data' => $usuario->makeHidden(['senha'])
+            'data' => UsuarioPresenter::detail($usuario),
         ], 200);
     }
 
-    public function toggleRole($id): JsonResponse
+    /** Localiza cliente pelo CPF informado no filtro de busca do admin. */
+    public function searchByCpf(Request $request): JsonResponse
     {
-        $usuario = Usuario::find($id);
+        $request->validate(['cpf' => 'required|string']);
+
+        $usuario = Usuario::findByCpf($request->input('cpf'));
 
         if (!$usuario) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Usuário não encontrado.'
-            ], 404);
+            return $this->notFound('Cliente não encontrado.');
         }
 
-        $roleAtual = strtolower((string)$usuario->role);
-        $novoRole = ($roleAtual === 'admin') ? 'cliente' : 'admin';
+        return $this->show($request, $usuario->hashid);
+    }
 
-        $usuario->role = $novoRole;
-        $usuario->save();
+    public function toggleStatus(Request $request, $id): JsonResponse
+    {
+        $usuario = Usuario::findByHashid($id);
+
+        if (!$usuario) {
+            return $this->notFound('Usuário não encontrado.');
+        }
+
+        $novoStatus = strtolower((string) $usuario->status) === 'ativo' ? 'inativo' : 'ativo';
+        $this->privileges->changeStatus($request->user(), $usuario, $novoStatus);
 
         return response()->json([
             'status' => 'success',
-            'message' => "Perfil do usuário #{$usuario->id} alterado para '{$novoRole}'.",
-            'data' => $usuario->makeHidden(['senha'])
+            'message' => "Status do usuário alterado para '{$novoStatus}'.",
+            'data' => UsuarioPresenter::listItem($usuario->fresh('enderecos'))
+        ], 200);
+    }
+
+    public function toggleRole(Request $request, $id): JsonResponse
+    {
+        $usuario = Usuario::findByHashid($id);
+
+        if (!$usuario) {
+            return $this->notFound('Usuário não encontrado.');
+        }
+
+        $novoRole = $usuario->isAdmin() ? 'cliente' : 'admin';
+        $this->privileges->changeRole($request->user(), $usuario, $novoRole);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => "Perfil do usuário alterado para '{$novoRole}'.",
+            'data' => UsuarioPresenter::listItem($usuario->fresh('enderecos'))
         ], 200);
     }
 }
-

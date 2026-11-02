@@ -8,6 +8,11 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Migration duplicada no histórico do projeto: só cria se ainda não existir.
+        if (Schema::hasTable('personal_access_tokens')) {
+            return;
+        }
+
         Schema::create('personal_access_tokens', function (Blueprint $table) {
             $table->id();
             $table->morphs('tokenable');

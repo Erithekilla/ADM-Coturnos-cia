@@ -22,7 +22,7 @@ class AdminPedidoController extends Controller
 
     public function updateStatus(Request $request, $id): JsonResponse
     {
-        $pedido = Pedido::with('itens')->find($id);
+        $pedido = Pedido::findByHashid($id, ['itens']);
 
         if (!$pedido) {
             return response()->json([
@@ -111,17 +111,13 @@ class AdminPedidoController extends Controller
 
             return response()->json([
                 'status' => 'success',
-                'message' => "Status do pedido #{$pedido->id} atualizado para '{$novoStatus}' com sucesso!" . ($novoStatus === 'cancelado' ? " (Estoque estornado automaticamente)." : ""),
+                'message' => "Status do pedido #{$pedido->hashid} atualizado para '{$novoStatus}' com sucesso!" . ($novoStatus === 'cancelado' ? " (Estoque estornado automaticamente)." : ""),
                 'data' => $pedido->fresh(['itens', 'usuario', 'endereco'])
             ], 200);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Erro ao atualizar status do pedido.',
-                'error_detail' => $e->getMessage()
-            ], 500);
+            return $this->serverError('Erro ao atualizar status do pedido.', $e);
         }
     }
 }
