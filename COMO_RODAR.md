@@ -80,13 +80,18 @@ Quando o ambiente Sail estiver ativo:
 
 ## 💻 Iniciando o Servidor de Desenvolvimento
 
-Para rodar o servidor localmente:
+Para rodar o servidor localmente (porta padrão configurada: 8001):
 
 ```bash
 php artisan serve
 ```
 
-A API estará acessível em: `http://127.0.0.1:8000` ou `http://localhost:8000`
+> **Nota sobre a Porta:** O projeto está configurado via `SERVER_PORT=8001` no `.env`. Caso deseje utilizar outra porta, altere a variável `SERVER_PORT` no seu `.env` ou execute:
+> ```bash
+> php artisan serve --port=8001
+> ```
+
+A API estará acessível em: `http://127.0.0.1:8001` ou `http://localhost:8001`
 
 ---
 
