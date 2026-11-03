@@ -52,7 +52,7 @@ class ProductImageController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = ProductImage::with(['product'])->find($id);
+        $record = ProductImage::findByHashid($id, ['product']);
 
         if (!$record) {
             return response()->json([
@@ -74,7 +74,7 @@ class ProductImageController extends Controller
             'product_id' => Product::class,
         ]);
 
-        $record = ProductImage::find($id);
+        $record = ProductImage::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -102,7 +102,7 @@ class ProductImageController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $record = ProductImage::find($id);
+        $record = ProductImage::findByHashid($id);
 
         if (!$record) {
             return response()->json([

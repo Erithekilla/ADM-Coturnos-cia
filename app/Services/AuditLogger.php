@@ -45,12 +45,15 @@ class AuditLogger
         $row = [
             // padrão documentado
             'admin_user_id'  => $actor?->getKey(),
+            'actor_label'    => $actor ? trim(($actor->first_name ?? $actor->nome ?? 'Usuário') . ' ' . ($actor->last_name ?? $actor->sobrenome ?? '')) . ' (' . self::maskEmail((string) $actor->email) . ')' : 'Sistema',
             'action'         => $action,
             'table_affected' => $table,
             'record_id'      => (int) ($recordId ?? 0),
             'old_values'     => $oldClean,
             'new_values'     => $newClean,
+            'description'    => $descricao ?? self::describe($oldClean, $newClean),
             'ip_address'     => $ip,
+            'user_agent'     => substr((string) ($request?->userAgent() ?? ''), 0, 255),
             // colunas legadas do painel
             'autor'          => $actor ? trim(($actor->first_name ?? $actor->nome ?? 'Usuário') . ' ' . ($actor->last_name ?? $actor->sobrenome ?? '')) . ' (' . self::maskEmail((string) $actor->email) . ')' : 'Sistema',
             'acao'           => $action,

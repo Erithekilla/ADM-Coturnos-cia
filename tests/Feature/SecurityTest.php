@@ -17,12 +17,15 @@ beforeEach(function () {
     Schema::create('audit_logs', function (Blueprint $t) {
         $t->id();
         $t->unsignedBigInteger('admin_user_id')->nullable();
+        $t->string('actor_label', 191)->nullable();
         $t->string('action', 100)->nullable();
         $t->string('table_affected', 60)->nullable();
         $t->unsignedBigInteger('record_id')->nullable();
         $t->json('old_values')->nullable();
         $t->json('new_values')->nullable();
+        $t->text('description')->nullable();
         $t->string('ip_address', 45)->nullable();
+        $t->string('user_agent', 255)->nullable();
         $t->string('autor')->nullable();
         $t->string('acao', 100)->nullable();
         $t->string('tabela', 60)->nullable();
@@ -36,6 +39,9 @@ beforeEach(function () {
 
 function criarUsuario(string $role = 'cliente', string $status = 'ativo', array $extra = []): User
 {
+    $roleNormalized = (strtolower($role) === 'cliente' || strtolower($role) === 'customer') ? 'customer' : 'admin';
+    $isActive = (strtolower($status) === 'ativo' || strtolower($status) === 'active');
+
     $u = new User(array_merge([
         'first_name' => ucfirst($role),
         'last_name' => 'Teste',
@@ -43,14 +49,19 @@ function criarUsuario(string $role = 'cliente', string $status = 'ativo', array 
         'password' => Hash::make('senha-forte-123'),
         'provider' => 'local',
     ], $extra));
-    $u->forceFill(['role' => $role, 'status' => $status, 'is_deleted' => 'N'])->save();
+    $u->forceFill([
+        'role' => $roleNormalized,
+        'active' => $isActive,
+        'status' => $status,
+        'is_deleted' => 'N',
+    ])->save();
 
     return $u;
 }
 
 function tokenDe(User $u, ?array $abilities = null): string
 {
-    return $u->createToken('teste', $abilities ?? ($u->isAdmin() ? ['admin'] : ['cliente']))->plainTextToken;
+    return $u->createToken('teste', $abilities ?? ($u->isAdmin() ? ['admin'] : ['customer']))->plainTextToken;
 }
 
 // ---------------------------------------------------------------------------
@@ -77,7 +88,7 @@ test('barreira 3: cliente retorna 403', function () {
 
 test('barreira 4: admin com token sem ability admin retorna 403', function () {
     $admin = criarUsuario('admin');
-    $this->withToken(tokenDe($admin, ['cliente']))->getJson('/api/v1/admin/logs')->assertStatus(403);
+    $this->withToken(tokenDe($admin, ['customer']))->getJson('/api/v1/admin/logs')->assertStatus(403);
 });
 
 test('admin ativo com token admin passa', function () {
@@ -145,7 +156,7 @@ test('ID inteiro cru ou adulterado retorna 404', function () {
 
 test('ID público de um pedido não serve como ID de usuário', function () {
     $admin = criarUsuario('admin');
-    $pedido = Order::create(['total_amount' => 10, 'status' => 'pendente', 'order_date' => now()]);
+    $pedido = Order::create(['total_amount' => 10, 'status' => 'pending', 'user_id' => $admin->id]);
 
     // mesmo inteiro, namespace diferente
     $this->withToken(tokenDe($admin))->getJson('/api/v1/usuarios/' . $pedido->hashid)->assertStatus(404);
@@ -239,7 +250,7 @@ test('admin pode despromover outro admin, mas o que sobrou não pode se despromo
         ->patchJson('/api/v1/admin/usuarios/' . $alvo->hashid . '/toggle-role')
         ->assertOk();
 
-    expect(User::find($alvo->id)->role)->toBe('cliente');
+    expect($alvo->fresh()->isAdmin())->toBeFalse();
 
     // o ator agora é o único admin ativo e não consegue se auto-despromover
     $this->withToken(tokenDe($ator))

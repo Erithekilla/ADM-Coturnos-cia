@@ -47,7 +47,7 @@ class CartController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = Cart::with(['user', 'items.product'])->find($id);
+        $record = Cart::findByHashid($id, ['user', 'items.product']);
 
         if (!$record) {
             return response()->json([
@@ -69,7 +69,7 @@ class CartController extends Controller
             'user_id' => User::class,
         ]);
 
-        $record = Cart::find($id);
+        $record = Cart::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -98,7 +98,7 @@ class CartController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $record = Cart::find($id);
+        $record = Cart::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -301,8 +301,8 @@ class CartController extends Controller
             'status' => 'success',
             'message' => 'Cart cleared!',
             'data' => [
-                'id_carrinho' => $cart->id,
-                'cart_id' => $cart->id,
+                'id_carrinho' => $cart->hashid,
+                'cart_id' => $cart->hashid,
                 'itens' => [],
                 'items' => [],
                 'subtotal' => 0,
@@ -406,8 +406,8 @@ class CartController extends Controller
         }
 
         return [
-            'id_carrinho' => $cart->id,
-            'cart_id' => $cart->id,
+            'id_carrinho' => $cart->hashid,
+            'cart_id' => $cart->hashid,
             'itens' => $formatted,
             'items' => $formatted,
             'subtotal' => $subtotal,

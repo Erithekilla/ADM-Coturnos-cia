@@ -52,7 +52,7 @@ class ProductSizeController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = ProductSize::with(['product'])->find($id);
+        $record = ProductSize::findByHashid($id, ['product']);
 
         if (!$record) {
             return response()->json([
@@ -74,7 +74,7 @@ class ProductSizeController extends Controller
             'product_id' => Product::class,
         ]);
 
-        $record = ProductSize::find($id);
+        $record = ProductSize::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -102,7 +102,7 @@ class ProductSizeController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $record = ProductSize::find($id);
+        $record = ProductSize::findByHashid($id);
 
         if (!$record) {
             return response()->json([

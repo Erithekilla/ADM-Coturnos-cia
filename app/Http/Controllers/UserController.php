@@ -15,12 +15,13 @@ class UserController extends Controller
 {
     public function index(): JsonResponse
     {
-        $users = User::with('addresses')
-            ->where(function ($q) {
+        $query = User::with('addresses');
+        if (Schema::hasColumn('users', 'is_deleted')) {
+            $query->where(function ($q) {
                 $q->whereNull('is_deleted')->orWhereRaw("TRIM(UPPER(COALESCE(is_deleted, 'N'))) != 'S'");
-            })
-            ->orderBy('id', 'desc')
-            ->get();
+            });
+        }
+        $users = $query->orderBy('id', 'desc')->get();
 
         $data = $users->map(fn (User $u) => UserPresenter::listItem($u));
 
@@ -70,11 +71,19 @@ class UserController extends Controller
             'provider' => strtolower($provider),
         ]);
 
-        $record->forceFill([
-            'role' => $role,
-            'status' => $status,
-            'is_deleted' => 'N',
-        ])->save();
+        $forceFields = [
+            'role' => (strtolower($role) === 'cliente' || strtolower($role) === 'customer') ? 'customer' : 'admin',
+        ];
+        if (Schema::hasColumn('users', 'active')) {
+            $forceFields['active'] = ($status === 'ativo');
+        }
+        if (Schema::hasColumn('users', 'status')) {
+            $forceFields['status'] = $status;
+        }
+        if (Schema::hasColumn('users', 'is_deleted')) {
+            $forceFields['is_deleted'] = 'N';
+        }
+        $record->forceFill($forceFields)->save();
 
         $response = [
             'status' => 'success',

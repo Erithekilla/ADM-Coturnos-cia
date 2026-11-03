@@ -1,5 +1,14 @@
 <?php
 
+/**
+ * INFRAESTRUTURA LARAVEL (filas em banco).
+ * Usada enquanto QUEUE_CONNECTION=database (e-mails, webhooks). Com o Redis ativo,
+ * as filas migram para QUEUE_CONNECTION=redis.
+ *
+ * Atenção: payload/exception de jobs podem conter dados pessoais serializados.
+ * Não coloque CPF/telefone em texto claro dentro de jobs; passe só o ID.
+ */
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -44,9 +53,8 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('jobs');
-        Schema::dropIfExists('job_batches');
         Schema::dropIfExists('failed_jobs');
+        Schema::dropIfExists('job_batches');
+        Schema::dropIfExists('jobs');
     }
 };
-

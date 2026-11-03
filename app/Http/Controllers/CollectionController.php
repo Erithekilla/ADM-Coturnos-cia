@@ -49,7 +49,7 @@ class CollectionController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = Collection::with(['products', 'images'])->find($id);
+        $record = Collection::findByHashid($id, ['products', 'images']);
 
         if (!$record) {
             return response()->json([
@@ -66,7 +66,7 @@ class CollectionController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $record = Collection::find($id);
+        $record = Collection::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -96,7 +96,7 @@ class CollectionController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $record = Collection::find($id);
+        $record = Collection::findByHashid($id);
 
         if (!$record) {
             return response()->json([

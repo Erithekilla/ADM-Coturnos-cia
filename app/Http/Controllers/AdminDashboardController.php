@@ -9,6 +9,7 @@ use App\Models\OrderItem;
 use App\Models\ProductSize;
 use App\Models\ProductPrice;
 use App\Models\AuditLog;
+use App\Support\Hashid;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -80,8 +81,8 @@ class AdminDashboardController extends Controller
                 ->get()
                 ->map(function ($t) {
                     return [
-                        'produtoId' => $t->product_id,
-                        'nome' => $t->product?->model ?: 'Coturno #' . $t->product_id,
+                        'produtoId' => Product::encodeId((int) $t->product_id),
+                        'nome' => $t->product?->model ?: 'Coturno sem nome',
                         'tamanho' => $t->size,
                         'quantidade' => (int) $t->quantity,
                     ];
@@ -181,8 +182,8 @@ class AdminDashboardController extends Controller
                 $foto = $prod->images->first()->image_url ?? '/coturno1.jpeg';
 
                 $topProdutos[] = [
-                    'id' => $prod->id,
-                    'name' => $prod->model ?: 'Coturno #' . $prod->id,
+                    'id' => $prod->hashid,
+                    'name' => $prod->model ?: 'Coturno sem nome',
                     'sales' => (int) $vendas,
                     'revenue' => 'R$ ' . number_format($receita, 2, ',', '.'),
                     'rating' => 4.8,
@@ -252,10 +253,14 @@ class AdminDashboardController extends Controller
         $auditLogs = AuditLog::orderBy('id', 'desc')->take(50)->get();
 
         $formatted = $auditLogs->map(function ($log) {
+            // IDs sempre cifrados, inclusive dentro dos textos exibidos no painel
+            $adminRef = $log->admin_user_id ? User::encodeId((int) $log->admin_user_id) : null;
+            $legacyRef = ($log->registro_id && $log->tabela) ? Hashid::encode((int) $log->registro_id, (string) $log->tabela) : null;
+
             return [
-                'id' => $log->id,
-                'user' => $log->autor ?: ($log->admin_user_id ? "Admin #{$log->admin_user_id}" : 'Sistema'),
-                'action' => $log->detalhes ?: ($log->action ? "{$log->action} em {$log->table_affected} (#{$log->record_id})" : "Ação em {$log->tabela} (#{$log->registro_id})"),
+                'id' => $log->hashid,
+                'user' => $log->autor ?: ($adminRef ? "Admin {$adminRef}" : 'Sistema'),
+                'action' => $log->detalhes ?: ($log->action ? "{$log->action} em {$log->table_affected} (" . ($log->record_hashid ?? '-') . ')' : "Ação em {$log->tabela} (" . ($legacyRef ?? '-') . ')'),
                 'type' => $log->acao ?: $log->action ?: 'AUDIT',
                 'timestamp' => $log->created_at ? $log->created_at->format('Y-m-d H:i:s') : date('Y-m-d H:i:s'),
             ];

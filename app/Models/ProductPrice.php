@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\HasHashidForeignKeys;
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ProductPrice extends Model
 {
-    use HasFactory, HasHashidForeignKeys;
+    use HasFactory, HasHashid;
 
     protected $table = 'product_prices';
     protected $primaryKey = 'id';

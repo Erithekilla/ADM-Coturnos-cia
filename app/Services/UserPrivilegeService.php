@@ -27,23 +27,26 @@ class UserPrivilegeService
         }
 
         $currentRole = strtolower((string) $target->role);
-        if ($currentRole === $newRole) {
+        $normalizedNewRole = ($newRole === 'cliente') ? 'customer' : $newRole;
+        $normalizedCurrentRole = ($currentRole === 'cliente') ? 'customer' : $currentRole;
+
+        if ($normalizedCurrentRole === $normalizedNewRole) {
             return $target;
         }
 
         $this->guardSelf($actor, $target, 'alterar o próprio perfil de acesso');
 
-        if ($currentRole === 'admin' && $target->isActive()) {
+        if ($normalizedCurrentRole === 'admin' && $target->isActive()) {
             $this->guardLastAdmin($target, 'despromover');
         }
 
-        return DB::transaction(function () use ($actor, $target, $currentRole, $newRole) {
-            $target->forceFill(['role' => $newRole])->save();
+        return DB::transaction(function () use ($actor, $target, $currentRole, $normalizedNewRole) {
+            $target->forceFill(['role' => $normalizedNewRole])->save();
 
             // Tokens antigos carregam abilities do papel anterior: força novo login.
             $target->tokens()->delete();
 
-            AuditLogger::record('TOGGLE_USER_ROLE', 'users', $target->getKey(), ['role' => $currentRole], ['role' => $newRole], actor: $actor);
+            AuditLogger::record('TOGGLE_USER_ROLE', 'users', $target->getKey(), ['role' => $currentRole], ['role' => $normalizedNewRole], actor: $actor);
 
             return $target;
         });
@@ -51,8 +54,8 @@ class UserPrivilegeService
 
     public function changeStatus(User $actor, User $target, string $newStatus): User
     {
-        $newStatus = strtolower(trim($newStatus)) === 'inativo' ? 'inativo' : 'ativo';
-        $currentStatus = strtolower((string) ($target->status ?: 'ativo'));
+        $newStatus = (strtolower(trim($newStatus)) === 'inativo') ? 'inativo' : 'ativo';
+        $currentStatus = $target->isActive() ? 'ativo' : 'inativo';
 
         if ($currentStatus === $newStatus) {
             return $target;
@@ -65,7 +68,14 @@ class UserPrivilegeService
         }
 
         return DB::transaction(function () use ($actor, $target, $currentStatus, $newStatus) {
-            $target->forceFill(['status' => $newStatus])->save();
+            $fields = [];
+            if (Schema::hasColumn('users', 'active')) {
+                $fields['active'] = ($newStatus === 'ativo');
+            }
+            if (Schema::hasColumn('users', 'status')) {
+                $fields['status'] = $newStatus;
+            }
+            $target->forceFill($fields)->save();
 
             if ($newStatus === 'inativo') {
                 $target->tokens()->delete();
@@ -88,7 +98,18 @@ class UserPrivilegeService
         DB::transaction(function () use ($actor, $target) {
             $old = ['status' => $target->status, 'is_deleted' => $target->is_deleted];
 
-            $target->forceFill(['is_deleted' => 'S', 'status' => 'inativo'])->save();
+            $fields = [];
+            if (Schema::hasColumn('users', 'active')) {
+                $fields['active'] = false;
+            }
+            if (Schema::hasColumn('users', 'status')) {
+                $fields['status'] = 'inativo';
+            }
+            if (Schema::hasColumn('users', 'is_deleted')) {
+                $fields['is_deleted'] = 'S';
+            }
+            $target->forceFill($fields)->save();
+            $target->delete(); // SoftDeletes
             $target->tokens()->delete();
 
             $cartItemsTable = Schema::hasTable('cart_items') ? 'cart_items' : 'itens_carrinho';
@@ -114,11 +135,19 @@ class UserPrivilegeService
         $outrosAdminsAtivos = User::query()
             ->whereRaw('LOWER(role) = ?', ['admin'])
             ->where(function ($q) {
-                $q->whereNull('status')->orWhereRaw('LOWER(status) = ?', ['ativo']);
+                if (Schema::hasColumn('users', 'active')) {
+                    $q->where('active', 1);
+                } else {
+                    $q->whereNull('status')->orWhereRaw('LOWER(status) = ?', ['ativo']);
+                }
             })
             ->where(function ($q) {
-                $delCol = Schema::hasColumn('users', 'is_deleted') ? 'is_deleted' : 'excluido';
-                $q->whereNull($delCol)->orWhereRaw("TRIM(UPPER(COALESCE({$delCol}, 'N'))) != 'S'");
+                if (Schema::hasColumn('users', 'deleted_at')) {
+                    $q->whereNull('deleted_at');
+                }
+                if (Schema::hasColumn('users', 'is_deleted')) {
+                    $q->whereRaw("TRIM(UPPER(COALESCE(is_deleted, 'N'))) != 'S'");
+                }
             })
             ->where('id', '!=', $target->getKey())
             ->count();

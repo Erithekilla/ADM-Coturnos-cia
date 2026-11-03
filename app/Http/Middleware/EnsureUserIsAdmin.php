@@ -27,10 +27,7 @@ class EnsureUserIsAdmin
         }
 
         // 2. Bloqueia contas inativas ou excluídas logicamente
-        $status = strtolower((string) ($user->status ?? 'ativo'));
-        $excluido = strtoupper(trim((string) ($user->is_deleted ?? $user->excluido ?? 'N')));
-
-        if ($status !== 'ativo' || $excluido === 'S') {
+        if (!$user->isActive()) {
             return response()->json([
                 'status'  => 'error',
                 'message' => 'Conta suspensa, inativa ou desativada pelo sistema.',
@@ -39,7 +36,7 @@ class EnsureUserIsAdmin
         }
 
         // 3. Validação estrita do papel administrativo
-        if (strtolower((string) $user->role) !== 'admin') {
+        if (!$user->isAdmin()) {
             return response()->json([
                 'status'  => 'error',
                 'message' => 'Acesso proibido. Apenas administradores possuem autorização para executar esta ação.',

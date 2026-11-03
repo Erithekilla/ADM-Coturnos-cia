@@ -1,5 +1,14 @@
 <?php
 
+/**
+ * TOKENS DO SANCTUM (cliente e admin).
+ *
+ * Uma única migration (o admin tinha duas duplicadas).
+ * - token: o Sanctum grava apenas o SHA-256 do token; o texto puro é mostrado uma vez.
+ * - expires_at indexado para a limpeza periódica (php artisan sanctum:prune-expired).
+ * - abilities: o admin recebe ['admin'] e o EnsureUserIsAdmin confere (barreira 4).
+ */
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -8,11 +17,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Migration duplicada no histórico do projeto: só cria se ainda não existir.
-        if (Schema::hasTable('personal_access_tokens')) {
-            return;
-        }
-
         Schema::create('personal_access_tokens', function (Blueprint $table) {
             $table->id();
             $table->morphs('tokenable');
@@ -30,4 +34,3 @@ return new class extends Migration
         Schema::dropIfExists('personal_access_tokens');
     }
 };
-

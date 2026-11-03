@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class CollectionImage extends Model
 {
-    use HasFactory;
+    use HasFactory, HasHashid;
 
     protected $table = 'collection_images';
     protected $primaryKey = 'id';
@@ -21,6 +22,14 @@ class CollectionImage extends Model
         'url_imagem',
         'id_colecao',
     ];
+
+    public function hashidForeignKeys(): array
+    {
+        return [
+            'collection_id' => Collection::class,
+            'id_colecao' => Collection::class,
+        ];
+    }
 
     protected static function booted(): void
     {

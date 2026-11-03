@@ -2,22 +2,24 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\HasHashidForeignKeys;
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 class ProductSize extends Model
 {
-    use HasFactory, HasHashidForeignKeys;
+    use HasFactory, HasHashid;
 
     protected $table = 'product_sizes';
     protected $primaryKey = 'id';
 
-    public $timestamps = false;
+    public $timestamps = true;
 
     protected $fillable = [
         'product_id',
         'size',
+        'stock',
         'quantity',
         // Backward-compatible
         'produtos_id',
@@ -44,8 +46,15 @@ class ProductSize extends Model
                 $s->attributes['size'] = $s->attributes['tamanho'];
                 unset($s->attributes['tamanho']);
             }
-            if (isset($s->attributes['quantidade']) && !isset($s->attributes['quantity'])) {
-                $s->attributes['quantity'] = $s->attributes['quantidade'];
+
+            $qty = $s->attributes['stock'] ?? $s->attributes['quantity'] ?? $s->attributes['quantidade'] ?? null;
+            if ($qty !== null) {
+                if (Schema::hasColumn('product_sizes', 'stock')) {
+                    $s->attributes['stock'] = (int) $qty;
+                }
+                if (Schema::hasColumn('product_sizes', 'quantity')) {
+                    $s->attributes['quantity'] = (int) $qty;
+                }
                 unset($s->attributes['quantidade']);
             }
         });
@@ -58,8 +67,17 @@ class ProductSize extends Model
     public function getTamanhoAttribute() { return $this->size; }
     public function setTamanhoAttribute($v) { $this->attributes['size'] = $v; }
 
-    public function getQuantidadeAttribute() { return $this->quantity; }
-    public function setQuantidadeAttribute($v) { $this->attributes['quantity'] = $v; }
+    public function getQuantidadeAttribute() { return $this->attributes['quantity'] ?? $this->attributes['stock'] ?? 0; }
+    public function setQuantidadeAttribute($v) {
+        $this->attributes['quantity'] = (int) $v;
+        $this->attributes['stock'] = (int) $v;
+    }
+
+    public function getStockAttribute() { return $this->attributes['stock'] ?? $this->attributes['quantity'] ?? 0; }
+    public function setStockAttribute($v) {
+        $this->attributes['stock'] = (int) $v;
+        $this->attributes['quantity'] = (int) $v;
+    }
 
     // --- Relationships ---
     public function product()
@@ -72,4 +90,3 @@ class ProductSize extends Model
         return $this->product();
     }
 }
-

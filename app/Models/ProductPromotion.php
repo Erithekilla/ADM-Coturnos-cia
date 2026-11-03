@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ProductPromotion extends Model
 {
-    use HasFactory;
+    use HasFactory, HasHashid;
 
     protected $table = 'product_promotions';
     protected $primaryKey = 'id';
@@ -27,6 +28,14 @@ class ProductPromotion extends Model
         'ativo',
         'precos_id_precos',
     ];
+
+    public function hashidForeignKeys(): array
+    {
+        return [
+            'price_id' => ProductPrice::class,
+            'precos_id_precos' => ProductPrice::class,
+        ];
+    }
 
     protected static function booted(): void
     {

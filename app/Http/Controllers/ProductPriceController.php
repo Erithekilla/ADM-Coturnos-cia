@@ -52,7 +52,7 @@ class ProductPriceController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = ProductPrice::with(['product', 'promotions'])->find($id);
+        $record = ProductPrice::findByHashid($id, ['product', 'promotions']);
 
         if (!$record) {
             return response()->json([
@@ -74,7 +74,7 @@ class ProductPriceController extends Controller
             'product_id' => Product::class,
         ]);
 
-        $record = ProductPrice::find($id);
+        $record = ProductPrice::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -102,7 +102,7 @@ class ProductPriceController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $record = ProductPrice::find($id);
+        $record = ProductPrice::findByHashid($id);
 
         if (!$record) {
             return response()->json([

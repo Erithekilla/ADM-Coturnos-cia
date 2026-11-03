@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class BannerImage extends Model
 {
-    use HasFactory;
+    use HasFactory, HasHashid;
 
     protected $table = 'banner_images';
     protected $primaryKey = 'id';
@@ -21,6 +22,14 @@ class BannerImage extends Model
         'url_imagem',
         'banner_idbanner',
     ];
+
+    public function hashidForeignKeys(): array
+    {
+        return [
+            'banner_id' => Banner::class,
+            'banner_idbanner' => Banner::class,
+        ];
+    }
 
     protected static function booted(): void
     {

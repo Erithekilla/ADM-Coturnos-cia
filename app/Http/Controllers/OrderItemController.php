@@ -61,7 +61,7 @@ class OrderItemController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = OrderItem::with(['order', 'product'])->find($id);
+        $record = OrderItem::findByHashid($id, ['order', 'product']);
 
         if (!$record) {
             return response()->json([
@@ -85,7 +85,7 @@ class OrderItemController extends Controller
             'order_id' => Order::class,
         ]);
 
-        $record = OrderItem::find($id);
+        $record = OrderItem::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -117,7 +117,7 @@ class OrderItemController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $record = OrderItem::find($id);
+        $record = OrderItem::findByHashid($id);
 
         if (!$record) {
             return response()->json([

@@ -58,7 +58,7 @@ class OrderHistoryController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = OrderHistory::with(['order'])->find($id);
+        $record = OrderHistory::findByHashid($id, ['order']);
 
         if (!$record) {
             return response()->json([
@@ -80,7 +80,7 @@ class OrderHistoryController extends Controller
             'order_id' => Order::class,
         ]);
 
-        $record = OrderHistory::find($id);
+        $record = OrderHistory::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -112,7 +112,7 @@ class OrderHistoryController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $record = OrderHistory::find($id);
+        $record = OrderHistory::findByHashid($id);
 
         if (!$record) {
             return response()->json([

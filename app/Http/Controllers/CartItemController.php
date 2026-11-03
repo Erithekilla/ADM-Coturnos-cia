@@ -22,6 +22,8 @@ class CartItemController extends Controller
     public function store(Request $request): JsonResponse
     {
         $this->decodeHashids($request, [
+            'cart_id' => Cart::class,
+            'carrinho_id_carrinho' => Cart::class,
             'produtos_id' => Product::class,
             'product_id' => Product::class,
         ]);
@@ -56,7 +58,7 @@ class CartItemController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = CartItem::with(['cart', 'product'])->find($id);
+        $record = CartItem::with(['cart', 'product'])->where('cart_id', Cart::decodeHashid($id) ?? 0)->first();
 
         if (!$record) {
             return response()->json([
@@ -74,11 +76,13 @@ class CartItemController extends Controller
     public function update(Request $request, $id): JsonResponse
     {
         $this->decodeHashids($request, [
+            'cart_id' => Cart::class,
+            'carrinho_id_carrinho' => Cart::class,
             'produtos_id' => Product::class,
             'product_id' => Product::class,
         ]);
 
-        $record = CartItem::find($id);
+        $record = CartItem::where('cart_id', Cart::decodeHashid($id) ?? 0)->first();
 
         if (!$record) {
             return response()->json([
@@ -108,7 +112,7 @@ class CartItemController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $record = CartItem::find($id);
+        $record = CartItem::where('cart_id', Cart::decodeHashid($id) ?? 0)->first();
 
         if (!$record) {
             return response()->json([

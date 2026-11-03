@@ -20,6 +20,11 @@ class CollectionImageController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->decodeHashids($request, [
+            'collection_id' => Collection::class,
+            'id_colecao' => Collection::class,
+        ]);
+
         $collectionId = $request->input('collection_id') ?: $request->input('id_colecao');
         $imageUrl = $request->input('image_url') ?: $request->input('url_imagem');
 
@@ -44,7 +49,7 @@ class CollectionImageController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = CollectionImage::with(['collection'])->find($id);
+        $record = CollectionImage::findByHashid($id, ['collection']);
 
         if (!$record) {
             return response()->json([
@@ -61,7 +66,12 @@ class CollectionImageController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $record = CollectionImage::find($id);
+        $this->decodeHashids($request, [
+            'collection_id' => Collection::class,
+            'id_colecao' => Collection::class,
+        ]);
+
+        $record = CollectionImage::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -87,7 +97,7 @@ class CollectionImageController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $record = CollectionImage::find($id);
+        $record = CollectionImage::findByHashid($id);
 
         if (!$record) {
             return response()->json([

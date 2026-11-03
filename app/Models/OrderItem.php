@@ -2,25 +2,27 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\HasHashidForeignKeys;
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class OrderItem extends Model
 {
-    use HasFactory, HasHashidForeignKeys;
+    use HasFactory, HasHashid;
 
     protected $table = 'order_items';
     protected $primaryKey = 'id';
 
-    public $timestamps = false;
+    public $timestamps = true;
 
     protected $fillable = [
         'order_id',
         'product_id',
+        'product_name',
         'quantity',
         'size',
         'unit_price',
+        'subtotal',
         // Backward-compatible
         'pedido_id',
         'produtos_id',
@@ -62,6 +64,16 @@ class OrderItem extends Model
                 $oi->attributes['unit_price'] = $oi->attributes['preco_unitario'];
                 unset($oi->attributes['preco_unitario']);
             }
+
+            $qty = (int) ($oi->attributes['quantity'] ?? 1);
+            $price = (float) ($oi->attributes['unit_price'] ?? 0);
+            if (!isset($oi->attributes['subtotal'])) {
+                $oi->attributes['subtotal'] = round($qty * $price, 2);
+            }
+
+            if (empty($oi->attributes['product_name']) && !empty($oi->attributes['product_id'])) {
+                $oi->attributes['product_name'] = Product::find($oi->attributes['product_id'])?->name;
+            }
         });
     }
 
@@ -102,4 +114,3 @@ class OrderItem extends Model
         return $this->product();
     }
 }
-

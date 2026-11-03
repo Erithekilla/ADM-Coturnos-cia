@@ -20,6 +20,11 @@ class ProductPromotionController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->decodeHashids($request, [
+            'price_id' => ProductPrice::class,
+            'precos_id_precos' => ProductPrice::class,
+        ]);
+
         $priceId = $request->input('price_id') ?: $request->input('precos_id_precos');
         $promoPrice = $request->input('promotional_price') ?: $request->input('valor_promo');
         $startDate = $request->input('start_date') ?: $request->input('data_inicio');
@@ -54,7 +59,7 @@ class ProductPromotionController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = ProductPromotion::with(['price'])->find($id);
+        $record = ProductPromotion::findByHashid($id, ['price']);
 
         if (!$record) {
             return response()->json([
@@ -71,7 +76,12 @@ class ProductPromotionController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $record = ProductPromotion::find($id);
+        $this->decodeHashids($request, [
+            'price_id' => ProductPrice::class,
+            'precos_id_precos' => ProductPrice::class,
+        ]);
+
+        $record = ProductPromotion::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -108,7 +118,7 @@ class ProductPromotionController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $record = ProductPromotion::find($id);
+        $record = ProductPromotion::findByHashid($id);
 
         if (!$record) {
             return response()->json([

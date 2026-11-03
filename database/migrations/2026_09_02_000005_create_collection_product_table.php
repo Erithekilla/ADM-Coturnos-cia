@@ -1,5 +1,13 @@
 <?php
 
+/**
+ * PIVÔ COLEÇÃO x PRODUTO.
+ *
+ * Origem: cliente. Nome no padrão do Laravel (`collection_product`, singular em ordem
+ * alfabética). O admin usava `collection_products` → ajustar os models do admin.
+ * - Chave primária composta impede o mesmo produto duas vezes na mesma coleção.
+ */
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -8,13 +16,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (Schema::hasTable('collection_products') || Schema::hasTable('collection_product')) {
-            return;
-        }
-
         Schema::create('collection_product', function (Blueprint $table) {
-            $table->foreignId('collection_id')->constrained('collections')->onDelete('cascade');
-            $table->foreignId('product_id')->constrained('products')->onDelete('cascade');
+            $table->foreignId('collection_id')->constrained('collections')->cascadeOnDelete();
+            $table->foreignId('product_id')->constrained('products')->cascadeOnDelete();
             $table->timestamps();
 
             $table->primary(['collection_id', 'product_id']);
@@ -26,4 +30,3 @@ return new class extends Migration
         Schema::dropIfExists('collection_product');
     }
 };
-

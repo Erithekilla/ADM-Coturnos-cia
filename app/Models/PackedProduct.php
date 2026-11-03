@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class PackedProduct extends Model
 {
-    use HasFactory;
+    use HasFactory, HasHashid;
 
     protected $table = 'packed_products';
 

@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\HasHashidForeignKeys;
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Cart extends Model
 {
-    use HasFactory, HasHashidForeignKeys;
+    use HasFactory, HasHashid;
 
     protected $table = 'carts';
     protected $primaryKey = 'id';

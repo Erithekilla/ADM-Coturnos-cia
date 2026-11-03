@@ -22,6 +22,8 @@ class CollectionProductController extends Controller
     public function store(Request $request): JsonResponse
     {
         $this->decodeHashids($request, [
+            'collection_id' => Collection::class,
+            'id_colecao' => Collection::class,
             'produtos_id' => Product::class,
             'product_id' => Product::class,
         ]);
@@ -50,7 +52,7 @@ class CollectionProductController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = CollectionProduct::with(['collection', 'product'])->find($id);
+        $record = CollectionProduct::with(['collection', 'product'])->where('collection_id', Collection::decodeHashid($id) ?? 0)->first();
 
         if (!$record) {
             return response()->json([
@@ -68,11 +70,13 @@ class CollectionProductController extends Controller
     public function update(Request $request, $id): JsonResponse
     {
         $this->decodeHashids($request, [
+            'collection_id' => Collection::class,
+            'id_colecao' => Collection::class,
             'produtos_id' => Product::class,
             'product_id' => Product::class,
         ]);
 
-        $record = CollectionProduct::find($id);
+        $record = CollectionProduct::where('collection_id', Collection::decodeHashid($id) ?? 0)->first();
 
         if (!$record) {
             return response()->json([
@@ -98,7 +102,7 @@ class CollectionProductController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $record = CollectionProduct::find($id);
+        $record = CollectionProduct::where('collection_id', Collection::decodeHashid($id) ?? 0)->first();
 
         if (!$record) {
             return response()->json([

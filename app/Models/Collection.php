@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Collection extends Model
 {
-    use HasFactory;
+    use HasFactory, HasHashid;
 
     protected $table = 'collections';
     protected $primaryKey = 'id';

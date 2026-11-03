@@ -20,6 +20,11 @@ class BannerImageController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->decodeHashids($request, [
+            'banner_id' => Banner::class,
+            'banner_idbanner' => Banner::class,
+        ]);
+
         $bannerId = $request->input('banner_id') ?: $request->input('banner_idbanner');
         $imageUrl = $request->input('image_url') ?: $request->input('url_imagem');
 
@@ -44,7 +49,7 @@ class BannerImageController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = BannerImage::with(['banner'])->find($id);
+        $record = BannerImage::findByHashid($id, ['banner']);
 
         if (!$record) {
             return response()->json([
@@ -61,7 +66,12 @@ class BannerImageController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $record = BannerImage::find($id);
+        $this->decodeHashids($request, [
+            'banner_id' => Banner::class,
+            'banner_idbanner' => Banner::class,
+        ]);
+
+        $record = BannerImage::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -87,7 +97,7 @@ class BannerImageController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $record = BannerImage::find($id);
+        $record = BannerImage::findByHashid($id);
 
         if (!$record) {
             return response()->json([

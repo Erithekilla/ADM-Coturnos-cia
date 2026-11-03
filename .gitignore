@@ -132,6 +132,7 @@ database.sqlite
 /database/*.db
 /database/dumps/
 /database/backups/
+/database/migrations_backup_atual/
 
 # ------------------------------------------------------------------------------
 # 6. Laravel Storage, Sessões de Usuários e Uploads

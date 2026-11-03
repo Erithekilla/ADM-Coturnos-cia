@@ -4,21 +4,21 @@ namespace App\Models;
 
 use App\Casts\SafeEncrypted;
 use App\Models\Concerns\HasHashid;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, HasHashid, Notifiable;
+    use HasApiTokens, HasFactory, HasHashid, Notifiable, SoftDeletes;
 
     protected $table = 'users';
     protected $primaryKey = 'id';
 
     /**
-     * Mass Assignment Protection: role, status, is_deleted and cpf_hash
+     * Mass Assignment Protection: role, active, status, is_deleted and cpf_hash
      * are never mass-assignable directly from client requests.
      */
     protected $fillable = [
@@ -29,8 +29,6 @@ class User extends Authenticatable
         'birth_date',
         'email',
         'password',
-        'google_id',
-        'provider',
         // Backward-compatible input keys
         'nome',
         'sobrenome',
@@ -47,7 +45,6 @@ class User extends Authenticatable
         'remember_token',
         'cpf_hash',
         'cpf',
-        'google_id',
     ];
 
     protected function casts(): array
@@ -56,10 +53,12 @@ class User extends Authenticatable
             'cpf'        => SafeEncrypted::class,
             'phone'      => SafeEncrypted::class,
             'birth_date' => SafeEncrypted::class,
+            'active'     => 'boolean',
             'status'     => 'string',
             'role'       => 'string',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
+            'deleted_at' => 'datetime',
         ];
     }
 
@@ -90,6 +89,32 @@ class User extends Authenticatable
             if (isset($user->attributes['data_criacao']) && !isset($user->attributes['created_at'])) {
                 $user->attributes['created_at'] = $user->attributes['data_criacao'];
                 unset($user->attributes['data_criacao']);
+            }
+
+            // Sync active <-> status
+            if (isset($user->attributes['status'])) {
+                $v = strtolower((string) $user->attributes['status']);
+                if (!isset($user->attributes['active'])) {
+                    $user->attributes['active'] = ($v === 'ativo' || $v === 'active');
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('users', 'status')) {
+                    unset($user->attributes['status']);
+                }
+            }
+
+            if (isset($user->attributes['is_deleted']) && !\Illuminate\Support\Facades\Schema::hasColumn('users', 'is_deleted')) {
+                unset($user->attributes['is_deleted']);
+            }
+            if (isset($user->attributes['excluido']) && !\Illuminate\Support\Facades\Schema::hasColumn('users', 'excluido')) {
+                unset($user->attributes['excluido']);
+            }
+
+            // Sync role (cliente -> customer)
+            if (isset($user->attributes['role'])) {
+                $r = strtolower((string) $user->attributes['role']);
+                if ($r === 'cliente') {
+                    $user->attributes['role'] = 'customer';
+                }
             }
 
             if ($user->isDirty('cpf')) {
@@ -174,10 +199,28 @@ class User extends Authenticatable
 
     public function isActive(): bool
     {
+        if ($this->trashed()) {
+            return false;
+        }
+
+        if (array_key_exists('active', $this->attributes)) {
+            return (bool) $this->attributes['active'];
+        }
+
         $status = strtolower((string) ($this->status ?? 'ativo'));
         $isDeleted = strtoupper(trim((string) ($this->is_deleted ?? 'N')));
 
         return ($status === 'ativo' || $status === 'active') && $isDeleted !== 'S';
+    }
+
+    public function getStatusAttribute(): string
+    {
+        return $this->isActive() ? 'ativo' : 'inativo';
+    }
+
+    public function getIsDeletedAttribute(): string
+    {
+        return $this->trashed() ? 'S' : 'N';
     }
 
     // --- Backward Compatible Attribute Accessors ---

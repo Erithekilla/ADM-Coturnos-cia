@@ -35,7 +35,7 @@ class BannerController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = Banner::with(['images'])->find($id);
+        $record = Banner::findByHashid($id, ['images']);
 
         if (!$record) {
             return response()->json([
@@ -52,7 +52,7 @@ class BannerController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $record = Banner::find($id);
+        $record = Banner::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -80,7 +80,7 @@ class BannerController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $record = Banner::find($id);
+        $record = Banner::findByHashid($id);
 
         if (!$record) {
             return response()->json([

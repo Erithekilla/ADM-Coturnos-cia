@@ -26,6 +26,8 @@ class CollectionProduct extends Model
     public function hashidForeignKeys(): array
     {
         return [
+            'collection_id' => Collection::class,
+            'id_colecao' => Collection::class,
             'product_id' => Product::class,
             'produtos_id' => Product::class,
         ];

@@ -30,6 +30,8 @@ class CartItem extends Model
     public function hashidForeignKeys(): array
     {
         return [
+            'cart_id' => Cart::class,
+            'carrinho_id_carrinho' => Cart::class,
             'product_id' => Product::class,
             'produtos_id' => Product::class,
         ];

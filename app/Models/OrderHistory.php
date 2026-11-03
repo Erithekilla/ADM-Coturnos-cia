@@ -2,18 +2,18 @@
 
 namespace App\Models;
 
-use App\Models\Concerns\HasHashidForeignKeys;
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class OrderHistory extends Model
 {
-    use HasFactory, HasHashidForeignKeys;
+    use HasFactory, HasHashid;
 
     protected $table = 'order_history';
     protected $primaryKey = 'id';
 
-    public $timestamps = false;
+    public $timestamps = true;
 
     protected $fillable = [
         'status',
@@ -21,6 +21,7 @@ class OrderHistory extends Model
         'status_date',
         'notes',
         'extra_info',
+        'changed_by',
         // Backward-compatible
         'pedido_id',
         'data_status',
@@ -33,6 +34,7 @@ class OrderHistory extends Model
         return [
             'order_id' => Order::class,
             'pedido_id' => Order::class,
+            'changed_by' => User::class,
         ];
     }
 
@@ -54,6 +56,35 @@ class OrderHistory extends Model
             if (isset($oh->attributes['historico_pedidocol']) && !isset($oh->attributes['extra_info'])) {
                 $oh->attributes['extra_info'] = $oh->attributes['historico_pedidocol'];
                 unset($oh->attributes['historico_pedidocol']);
+            }
+
+            $statusMap = [
+                0 => 'cancelled',
+                1 => 'pending',
+                2 => 'paid',
+                3 => 'preparing',
+                4 => 'shipped',
+                5 => 'delivered',
+                '0' => 'cancelled',
+                '1' => 'pending',
+                '2' => 'paid',
+                '3' => 'preparing',
+                '4' => 'shipped',
+                '5' => 'delivered',
+                'cancelado' => 'cancelled',
+                'pendente' => 'pending',
+                'pago' => 'paid',
+                'em_separacao' => 'preparing',
+                'enviado' => 'shipped',
+                'entregue' => 'delivered',
+            ];
+            if (isset($oh->attributes['status'])) {
+                $st = is_numeric($oh->attributes['status']) ? (int) $oh->attributes['status'] : strtolower(trim((string)$oh->attributes['status']));
+                $oh->attributes['status'] = $statusMap[$st] ?? (is_string($st) ? $st : 'pending');
+            }
+
+            if (!isset($oh->attributes['status_date'])) {
+                $oh->attributes['status_date'] = now();
             }
         });
     }
@@ -81,5 +112,9 @@ class OrderHistory extends Model
     {
         return $this->order();
     }
-}
 
+    public function changedByUser()
+    {
+        return $this->belongsTo(User::class, 'changed_by', 'id');
+    }
+}
