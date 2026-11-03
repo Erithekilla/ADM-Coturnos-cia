@@ -1,8 +1,8 @@
 <?php
 
 use App\Models\AuditLog;
-use App\Models\Pedido;
-use App\Models\Usuario;
+use App\Models\Order;
+use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -12,11 +12,6 @@ use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
-/*
- * As tabelas de negócio (usuario, pedido, ...) vêm do banco legado MySQL e não
- * têm migration no projeto. Aqui recriamos a estrutura mínima em SQLite,
- * já no formato pós-migration de segurança.
- */
 beforeEach(function () {
     Schema::dropIfExists('audit_logs');
     Schema::create('audit_logs', function (Blueprint $t) {
@@ -37,83 +32,23 @@ beforeEach(function () {
         $t->timestamp('created_at')->nullable();
     });
     AuditLogger::flushColumnCache();
-
-    Schema::create('usuario', function (Blueprint $t) {
-        $t->id();
-        $t->string('nome', 45)->nullable();
-        $t->string('sobrenome', 45)->nullable();
-        $t->string('cpf', 512)->nullable();
-        $t->char('cpf_hash', 64)->nullable()->unique();
-        $t->string('telefone', 512)->nullable();
-        $t->string('data_nascimento', 512)->nullable();
-        $t->string('email')->nullable();
-        $t->dateTime('data_criacao')->nullable();
-        $t->string('senha')->nullable();
-        $t->string('google_id')->nullable();
-        $t->string('provider')->nullable();
-        $t->string('role')->nullable();
-        $t->string('status')->nullable();
-        $t->char('excluido', 1)->nullable();
-    });
-    Schema::create('endereco', function (Blueprint $t) {
-        $t->id();
-        foreach (['cep', 'rua', 'bairro', 'cidade', 'estado', 'numero', 'complemento'] as $c) {
-            $t->string($c)->nullable();
-        }
-        $t->integer('padrao')->nullable();
-        $t->unsignedBigInteger('usuario_id')->nullable();
-    });
-    Schema::create('carrinho', function (Blueprint $t) {
-        $t->id('id_carrinho');
-        $t->unsignedBigInteger('usuario_id');
-        $t->dateTime('criado_em')->nullable();
-        $t->dateTime('atualizado_em')->nullable();
-    });
-    Schema::create('pedido', function (Blueprint $t) {
-        $t->id();
-        $t->decimal('valor_total', 10, 2)->default(0);
-        $t->string('status')->nullable();
-        $t->dateTime('data_pedido')->nullable();
-        $t->unsignedBigInteger('usuario_id')->nullable();
-        $t->unsignedBigInteger('endereco_id')->nullable();
-    });
-    Schema::create('itens_pedidos', function (Blueprint $t) {
-        $t->id();
-        $t->integer('quantidade')->nullable();
-        $t->integer('tamanho')->nullable();
-        $t->decimal('preco_unitario', 10, 2)->nullable();
-        $t->unsignedBigInteger('produtos_id')->nullable();
-        $t->unsignedBigInteger('pedido_id')->nullable();
-    });
-    Schema::create('historico_pedido', function (Blueprint $t) {
-        $t->id();
-        $t->integer('status')->nullable();
-        $t->unsignedBigInteger('pedido_id')->nullable();
-        $t->dateTime('data_status')->nullable();
-        $t->string('observacao')->nullable();
-    });
-    Schema::create('pagamento', function (Blueprint $t) {
-        $t->id('id_compra');
-        $t->unsignedBigInteger('pedido_id')->nullable();
-        $t->string('status')->nullable();
-    });
 });
 
-function criarUsuario(string $role = 'cliente', string $status = 'ativo', array $extra = []): Usuario
+function criarUsuario(string $role = 'cliente', string $status = 'ativo', array $extra = []): User
 {
-    $u = new Usuario(array_merge([
-        'nome' => ucfirst($role),
-        'sobrenome' => 'Teste',
+    $u = new User(array_merge([
+        'first_name' => ucfirst($role),
+        'last_name' => 'Teste',
         'email' => $role . '-' . uniqid() . '@teste.com',
-        'senha' => Hash::make('senha-forte-123'),
+        'password' => Hash::make('senha-forte-123'),
         'provider' => 'local',
     ], $extra));
-    $u->forceFill(['role' => $role, 'status' => $status, 'excluido' => 'N'])->save();
+    $u->forceFill(['role' => $role, 'status' => $status, 'is_deleted' => 'N'])->save();
 
     return $u;
 }
 
-function tokenDe(Usuario $u, ?array $abilities = null): string
+function tokenDe(User $u, ?array $abilities = null): string
 {
     return $u->createToken('teste', $abilities ?? ($u->isAdmin() ? ['admin'] : ['cliente']))->plainTextToken;
 }
@@ -210,7 +145,7 @@ test('ID inteiro cru ou adulterado retorna 404', function () {
 
 test('ID público de um pedido não serve como ID de usuário', function () {
     $admin = criarUsuario('admin');
-    $pedido = Pedido::create(['valor_total' => 10, 'status' => 'pendente', 'data_pedido' => now()]);
+    $pedido = Order::create(['total_amount' => 10, 'status' => 'pendente', 'order_date' => now()]);
 
     // mesmo inteiro, namespace diferente
     $this->withToken(tokenDe($admin))->getJson('/api/v1/usuarios/' . $pedido->hashid)->assertStatus(404);
@@ -237,7 +172,7 @@ test('CPF e telefone ficam cifrados no banco e o cpf_hash permite busca', functi
     $raw = DB::table('users')->where('email', 'maria@teste.com')->first();
     expect($raw->cpf)->not->toContain('123')
         ->and($raw->phone)->not->toContain('98765')
-        ->and($raw->cpf_hash)->toBe(Usuario::generateCpfHash('12345678909'));
+        ->and($raw->cpf_hash)->toBe(User::generateCpfHash('12345678909'));
 
     $lista = $this->withToken(tokenDe($admin))->getJson('/api/v1/usuarios')->json('data');
     $maria = collect($lista)->firstWhere('email', 'maria@teste.com');
@@ -263,7 +198,7 @@ test('CPF não pode ser alterado depois de registrado', function () {
         ->putJson('/api/v1/usuarios/' . $cliente->hashid, ['cpf' => '***.222.333-**', 'nome' => 'Novo'])
         ->assertOk();
 
-    expect(Usuario::find($cliente->id)->cpf)->toBe('11122233344');
+    expect(User::find($cliente->id)->cpf)->toBe('11122233344');
 });
 
 test('editar usuário não redefine a senha', function () {
@@ -283,7 +218,7 @@ test('editar usuário não redefine a senha', function () {
 // ---------------------------------------------------------------------------
 
 test('role não é atribuível por mass assignment', function () {
-    $u = new Usuario(['nome' => 'X', 'role' => 'admin', 'status' => 'ativo']);
+    $u = new User(['first_name' => 'X', 'role' => 'admin', 'status' => 'ativo']);
     expect($u->role)->toBeNull();
 });
 
@@ -304,14 +239,14 @@ test('admin pode despromover outro admin, mas o que sobrou não pode se despromo
         ->patchJson('/api/v1/admin/usuarios/' . $alvo->hashid . '/toggle-role')
         ->assertOk();
 
-    expect(Usuario::find($alvo->id)->role)->toBe('cliente');
+    expect(User::find($alvo->id)->role)->toBe('cliente');
 
     // o ator agora é o único admin ativo e não consegue se auto-despromover
     $this->withToken(tokenDe($ator))
         ->patchJson('/api/v1/admin/usuarios/' . $ator->hashid . '/toggle-role')
         ->assertStatus(403);
 
-    expect(Usuario::find($ator->id)->role)->toBe('admin');
+    expect(User::find($ator->id)->role)->toBe('admin');
 });
 
 test('despromoção revoga os tokens do alvo', function () {

@@ -81,3 +81,4 @@ class ProductPromotion extends Model
         return $this->price();
     }
 }
+

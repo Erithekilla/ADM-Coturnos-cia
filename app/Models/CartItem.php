@@ -91,3 +91,4 @@ class CartItem extends Model
         return $this->product();
     }
 }
+

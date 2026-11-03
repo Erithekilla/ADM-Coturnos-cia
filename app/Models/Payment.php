@@ -82,3 +82,4 @@ class Payment extends Model
         return $this->order();
     }
 }
+

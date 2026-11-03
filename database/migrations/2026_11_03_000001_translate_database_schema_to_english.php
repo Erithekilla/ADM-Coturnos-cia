@@ -258,61 +258,6 @@ return new class extends Migration
             $renameTbl('historico_pedido', 'order_history');
         }
 
-        // Ensure missing tables for clean SQLite/fresh environments
-        if (!Schema::hasTable('order_history')) {
-            Schema::create('order_history', function (Blueprint $table) {
-                $table->id();
-                $table->integer('status')->nullable();
-                $table->foreignId('order_id')->nullable();
-                $table->dateTime('status_date')->nullable();
-                $table->string('notes', 255)->nullable();
-                $table->string('extra_info', 45)->nullable();
-            });
-        }
-
-        if (!Schema::hasTable('product_prices')) {
-            Schema::create('product_prices', function (Blueprint $table) {
-                $table->id();
-                $table->decimal('price', 10, 2);
-                $table->dateTime('effective_date')->nullable();
-                $table->foreignId('product_id')->nullable();
-            });
-        }
-
-        if (!Schema::hasTable('product_promotions')) {
-            Schema::create('product_promotions', function (Blueprint $table) {
-                $table->id();
-                $table->decimal('promotional_price', 10, 2);
-                $table->dateTime('start_date')->nullable();
-                $table->dateTime('end_date')->nullable();
-                $table->integer('active')->default(1);
-                $table->foreignId('price_id')->nullable();
-            });
-        }
-
-        if (!Schema::hasTable('collection_images')) {
-            Schema::create('collection_images', function (Blueprint $table) {
-                $table->id();
-                $table->text('image_url');
-                $table->foreignId('collection_id')->nullable();
-            });
-        }
-
-        if (!Schema::hasTable('banners')) {
-            Schema::create('banners', function (Blueprint $table) {
-                $table->id();
-                $table->integer('active')->default(1);
-            });
-        }
-
-        if (!Schema::hasTable('banner_images')) {
-            Schema::create('banner_images', function (Blueprint $table) {
-                $table->id();
-                $table->text('image_url');
-                $table->foreignId('banner_id')->nullable();
-            });
-        }
-
         // Update personal_access_tokens
         if (Schema::hasTable('personal_access_tokens')) {
             DB::table('personal_access_tokens')
@@ -360,3 +305,4 @@ return new class extends Migration
     {
     }
 };
+

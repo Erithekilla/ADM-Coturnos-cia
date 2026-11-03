@@ -102,3 +102,4 @@ class OrderItem extends Model
         return $this->product();
     }
 }
+

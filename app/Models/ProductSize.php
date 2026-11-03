@@ -72,3 +72,4 @@ class ProductSize extends Model
         return $this->product();
     }
 }
+

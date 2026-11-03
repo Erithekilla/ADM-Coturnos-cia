@@ -82,3 +82,4 @@ class Collection extends Model
         return $this->images();
     }
 }
+

@@ -54,3 +54,4 @@ class CollectionImage extends Model
         return $this->collection();
     }
 }
+

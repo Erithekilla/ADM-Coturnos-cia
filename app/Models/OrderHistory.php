@@ -82,3 +82,4 @@ class OrderHistory extends Model
         return $this->order();
     }
 }
+

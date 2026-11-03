@@ -14,12 +14,13 @@ return new class extends Migration
 
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->decimal('total_amount', 10, 2)->default(0.00);
-            $table->string('status', 50)->nullable()->default('pendente');
+            $table->decimal('total_amount', 10, 2)->default(0);
+            $table->string('status', 50)->nullable();
             $table->string('tracking_code', 100)->nullable();
             $table->dateTime('order_date')->nullable();
-            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
-            $table->foreignId('address_id')->nullable()->constrained('addresses')->onDelete('set null');
+            $table->unsignedBigInteger('user_id')->nullable();
+            $table->unsignedBigInteger('address_id')->nullable();
+            $table->timestamps();
         });
     }
 
@@ -28,3 +29,4 @@ return new class extends Migration
         Schema::dropIfExists('orders');
     }
 };
+

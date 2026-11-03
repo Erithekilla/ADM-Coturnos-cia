@@ -47,3 +47,4 @@ class BannerImage extends Model
         return $this->belongsTo(Banner::class, 'banner_id', 'id');
     }
 }
+

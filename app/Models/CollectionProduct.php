@@ -73,3 +73,4 @@ class CollectionProduct extends Model
         return $this->product();
     }
 }
+

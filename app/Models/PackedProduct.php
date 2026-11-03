@@ -49,3 +49,4 @@ class PackedProduct extends Model
     public function getComprimentoAttribute() { return $this->length; }
     public function setComprimentoAttribute($v) { $this->attributes['length'] = $v; }
 }
+
