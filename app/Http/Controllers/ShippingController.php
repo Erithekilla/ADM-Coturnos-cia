@@ -74,3 +74,4 @@ class ShippingController extends Controller
         return $this->calculate($request);
     }
 }
+

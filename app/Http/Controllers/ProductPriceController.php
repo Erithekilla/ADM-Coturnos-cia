@@ -119,3 +119,4 @@ class ProductPriceController extends Controller
         ], 200);
     }
 }
+

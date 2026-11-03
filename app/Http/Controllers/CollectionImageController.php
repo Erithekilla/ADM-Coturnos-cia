@@ -104,3 +104,4 @@ class CollectionImageController extends Controller
         ], 200);
     }
 }
+

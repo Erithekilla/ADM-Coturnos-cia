@@ -34,3 +34,4 @@ class OrderObserver
             'Order deleted');
     }
 }
+

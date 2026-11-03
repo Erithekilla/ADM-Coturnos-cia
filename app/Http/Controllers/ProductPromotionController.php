@@ -125,3 +125,4 @@ class ProductPromotionController extends Controller
         ], 200);
     }
 }
+

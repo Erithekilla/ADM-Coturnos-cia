@@ -115,3 +115,4 @@ class CollectionProductController extends Controller
         ], 200);
     }
 }
+

@@ -423,3 +423,4 @@ class CartController extends Controller
         return $user instanceof User && $user->isActive() ? $user : null;
     }
 }
+

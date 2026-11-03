@@ -240,3 +240,4 @@ class AdminProductController extends Controller
         }
     }
 }
+

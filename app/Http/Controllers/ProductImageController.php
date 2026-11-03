@@ -119,3 +119,4 @@ class ProductImageController extends Controller
         ], 200);
     }
 }
+

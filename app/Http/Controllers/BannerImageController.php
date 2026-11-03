@@ -104,3 +104,4 @@ class BannerImageController extends Controller
         ], 200);
     }
 }
+

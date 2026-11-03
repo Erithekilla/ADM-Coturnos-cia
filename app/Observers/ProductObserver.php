@@ -35,3 +35,4 @@ class ProductObserver
             'Product removed: ' . ($product->model ?? $product->id));
     }
 }
+
