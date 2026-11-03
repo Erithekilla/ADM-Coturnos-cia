@@ -2,21 +2,21 @@
 
 namespace App\Observers;
 
-use App\Models\Produto;
+use App\Models\Product;
 use App\Services\AuditLogger;
 
 class ProdutoObserver
 {
-    public function created(Produto $produto): void
+    public function created(Product $produto): void
     {
-        AuditLogger::record('PRODUCT_CREATE', 'produtos', $produto->id, null, [
-            'modelo' => $produto->modelo,
-            'tipo'   => $produto->tipo_do_produto,
-            'marca'  => $produto->marca,
-        ], 'Produto cadastrado: ' . ($produto->modelo ?? $produto->id));
+        AuditLogger::record('PRODUCT_CREATE', 'products', $produto->id, null, [
+            'model'        => $produto->model,
+            'product_type' => $produto->product_type,
+            'brand'        => $produto->brand,
+        ], 'Produto cadastrado: ' . ($produto->model ?? $produto->id));
     }
 
-    public function updated(Produto $produto): void
+    public function updated(Product $produto): void
     {
         $changes = collect($produto->getChanges())->except(['updated_at'])->all();
         if (empty($changes)) {
@@ -24,14 +24,14 @@ class ProdutoObserver
         }
 
         $old = array_intersect_key($produto->getOriginal(), $changes);
-        $acao = ($changes['excluido'] ?? null) === 'S' ? 'PRODUCT_DELETE' : 'PRODUCT_UPDATE';
+        $acao = (($changes['is_deleted'] ?? null) === 'S' || ($changes['excluido'] ?? null) === 'S') ? 'PRODUCT_DELETE' : 'PRODUCT_UPDATE';
 
-        AuditLogger::record($acao, 'produtos', $produto->id, $old, $changes);
+        AuditLogger::record($acao, 'products', $produto->id, $old, $changes);
     }
 
-    public function deleted(Produto $produto): void
+    public function deleted(Product $produto): void
     {
-        AuditLogger::record('PRODUCT_DELETE', 'produtos', $produto->id, ['modelo' => $produto->modelo], null,
-            'Produto removido: ' . ($produto->modelo ?? $produto->id));
+        AuditLogger::record('PRODUCT_DELETE', 'products', $produto->id, ['model' => $produto->model], null,
+            'Produto removido: ' . ($produto->model ?? $produto->id));
     }
 }

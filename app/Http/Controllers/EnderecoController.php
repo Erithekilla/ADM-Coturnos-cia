@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Endereco;
+use App\Models\Address;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -10,7 +11,7 @@ class EnderecoController extends Controller
 {
     public function index(): JsonResponse
     {
-        $data = Endereco::with(['usuario'])->paginate(20);
+        $data = Address::with(['user'])->paginate(20);
         return response()->json([
             'status' => 'success',
             'data' => $data
@@ -19,37 +20,62 @@ class EnderecoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->decodeHashids($request, ['usuario_id' => \App\Models\Usuario::class]);
-
-        $validated = $request->validate([
-            'cep' => 'required|string|max:8',
-            'rua' => 'required|string|max:45',
-            'bairro' => 'required|string|max:45',
-            'cidade' => 'required|string|max:45',
-            'estado' => 'required|string|max:45',
-            'numero' => 'required|string|max:45',
-            'complemento' => 'nullable|string|max:45',
-            'padrao' => 'required|integer|in:0,1',
-            'usuario_id' => 'required|integer|exists:usuario,id',
+        $this->decodeHashids($request, [
+            'usuario_id' => User::class,
+            'user_id' => User::class,
         ]);
 
-        $record = Endereco::create($validated);
+        $zipCode = $request->input('zip_code') ?: $request->input('cep');
+        $street = $request->input('street') ?: $request->input('rua');
+        $neighborhood = $request->input('neighborhood') ?: $request->input('bairro');
+        $city = $request->input('city') ?: $request->input('cidade');
+        $state = $request->input('state') ?: $request->input('estado');
+        $number = $request->input('number') ?: $request->input('numero');
+        $complement = $request->input('complement') ?: $request->input('complemento');
+        $isDefault = $request->input('is_default', $request->input('padrao', 0));
+        $userId = $request->input('user_id') ?: $request->input('usuario_id');
+
+        $request->merge([
+            'zip_code' => $zipCode,
+            'street' => $street,
+            'neighborhood' => $neighborhood,
+            'city' => $city,
+            'state' => $state,
+            'number' => $number,
+            'complement' => $complement,
+            'is_default' => $isDefault,
+            'user_id' => $userId,
+        ]);
+
+        $validated = $request->validate([
+            'zip_code' => 'required|string|max:20',
+            'street' => 'required|string|max:100',
+            'neighborhood' => 'required|string|max:60',
+            'city' => 'required|string|max:60',
+            'state' => 'required|string|max:45',
+            'number' => 'required|string|max:20',
+            'complement' => 'nullable|string|max:60',
+            'is_default' => 'nullable|integer|in:0,1',
+            'user_id' => 'required|integer|exists:users,id',
+        ]);
+
+        $record = Address::create($validated);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Endereco criado com sucesso!',
+            'message' => 'Endereço criado com sucesso!',
             'data' => $record
         ], 201);
     }
 
     public function show($id): JsonResponse
     {
-        $record = Endereco::findByHashid($id, ['usuario']);
+        $record = Address::findByHashid($id, ['user']);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Endereco não encontrado.'
+                'message' => 'Endereço não encontrado.'
             ], 404);
         }
 
@@ -61,46 +87,57 @@ class EnderecoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $this->decodeHashids($request, ['usuario_id' => \App\Models\Usuario::class]);
+        $this->decodeHashids($request, [
+            'usuario_id' => User::class,
+            'user_id' => User::class,
+        ]);
 
-        $record = Endereco::findByHashid($id);
+        $record = Address::findByHashid($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Endereco não encontrado.'
+                'message' => 'Endereço não encontrado.'
             ], 404);
         }
 
-        $validated = $request->validate([
-            'cep' => 'required|string|max:8',
-            'rua' => 'required|string|max:45',
-            'bairro' => 'required|string|max:45',
-            'cidade' => 'required|string|max:45',
-            'estado' => 'required|string|max:45',
-            'numero' => 'required|string|max:45',
-            'complemento' => 'nullable|string|max:45',
-            'padrao' => 'required|integer|in:0,1',
-            'usuario_id' => 'required|integer|exists:usuario,id',
-        ]);
+        $zipCode = $request->input('zip_code') ?: $request->input('cep') ?: $record->zip_code;
+        $street = $request->input('street') ?: $request->input('rua') ?: $record->street;
+        $neighborhood = $request->input('neighborhood') ?: $request->input('bairro') ?: $record->neighborhood;
+        $city = $request->input('city') ?: $request->input('cidade') ?: $record->city;
+        $state = $request->input('state') ?: $request->input('estado') ?: $record->state;
+        $number = $request->input('number') ?: $request->input('numero') ?: $record->number;
+        $complement = $request->has('complement') ? $request->input('complement') : ($request->has('complemento') ? $request->input('complemento') : $record->complement);
+        $isDefault = $request->input('is_default', $request->input('padrao', $record->is_default));
+        $userId = $request->input('user_id') ?: $request->input('usuario_id') ?: $record->user_id;
 
-        $record->update($validated);
+        $record->update([
+            'zip_code' => $zipCode,
+            'street' => $street,
+            'neighborhood' => $neighborhood,
+            'city' => $city,
+            'state' => $state,
+            'number' => $number,
+            'complement' => $complement,
+            'is_default' => $isDefault,
+            'user_id' => $userId,
+        ]);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Endereco atualizado com sucesso!',
+            'message' => 'Endereço atualizado com sucesso!',
             'data' => $record
         ], 200);
     }
 
     public function destroy($id): JsonResponse
     {
-        $record = Endereco::findByHashid($id);
+        $record = Address::findByHashid($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Endereco não encontrado.'
+                'message' => 'Endereço não encontrado.'
             ], 404);
         }
 
@@ -108,8 +145,7 @@ class EnderecoController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Endereco removido com sucesso!'
+            'message' => 'Endereço removido com sucesso!'
         ], 200);
     }
 }
-

@@ -152,41 +152,45 @@ _(Limpa cache de rotas, configurações, views e eventos de uma só vez)._
 
 ---
 
-## 🔒 Arquitetura de Segurança Implementada
+## 🔒 Arquitetura de Segurança e Banco de Dados em Inglês
 
-1. **Tokens de API (Sanctum):**  
-   Rotas protegidas devem receber o cabeçalho HTTP:
+1. **Tabelas e Colunas Padronizadas em Inglês:**  
+   Todas as tabelas e colunas foram traduzidas e padronizadas no banco de dados e no backend:
+   - `users` (`first_name`, `last_name`, `cpf`, `phone`, `birth_date`, `email`, `role`, `status`, `is_deleted`, `cpf_hash`, `password`)
+   - `addresses` (`user_id`, `zip_code`, `street`, `neighborhood`, `city`, `state`, `number`, `complement`, `is_default`)
+   - `products` (`product_type`, `model`, `brand`, `description`, `active`, `color`, `status`, `is_deleted`)
+   - `product_sizes` (`product_id`, `size`, `quantity`)
+   - `product_images` (`image_url`, `public_id`, `product_id`)
+   - `product_prices` (`price`, `effective_date`, `product_id`)
+   - `product_promotions` (`promotional_price`, `start_date`, `end_date`, `active`, `price_id`)
+   - `collections` (`name`, `description`, `start_date`, `end_date`)
+   - `collection_products` (`collection_id`, `product_id`)
+   - `collection_images` (`image_url`, `collection_id`)
+   - `banners` (`active`)
+   - `banner_images` (`image_url`, `banner_id`)
+   - `carts` (`user_id`, `created_at`, `updated_at`)
+   - `cart_items` (`cart_id`, `product_id`, `quantity`, `size`)
+   - `orders` (`total_amount`, `status`, `tracking_code`, `order_date`, `user_id`, `address_id`)
+   - `order_items` (`quantity`, `size`, `unit_price`, `product_id`, `order_id`)
+   - `payments` (`payment_date`, `order_id`, `payment_method`, `status`, `amount`)
+   - `order_history` (`status`, `order_id`, `status_date`, `notes`, `extra_info`)
+   - `audit_logs` (`admin_user_id`, `action`, `table_affected`, `record_id`, `old_values`, `new_values`, `ip_address`)
+
+2. **Compatibilidade Total com o Front-end:**  
+   As classes em português (`Usuario`, `Produto`, `Pedido`, etc.) e os nomes de rotas/atributos legados continuam operacionais como aliases transparentes.
+
+3. **Tokens de API (Sanctum):**  
+   Rotas protegidas exigem o cabeçalho:
     ```http
     Authorization: Bearer <SEU_TOKEN_AQUI>
     Accept: application/json
     ```
-2. **Criptografia Bidirecional (AES-256):**  
-   Os campos `cpf` e `telefone` são criptografados de forma transparente via Eloquent Casts na model `User`:
-    ```php
-    protected function casts(): array {
-        return [
-            'password' => 'hashed',
-            'cpf'      => 'encrypted',
-            'telefone' => 'encrypted',
-        ];
-    }
-    ```
-3. **Anti-IDOR em Endereços:**  
-   Nunca busque endereços diretamente por `Endereco::find($id)`. Sempre vincule ao usuário autenticado:
-    ```php
-    $endereco = $request->user()->enderecos()->findOrFail($id);
-    ```
-4. **Baixa Concorrente de Estoque:**  
-   Ao decrementar estoque de pedidos aprovados, use transação atômica com bloqueio pessimista:
-    ```php
-    DB::transaction(function() use ($item) {
-        $grade = ProductSize::where('product_id', $item->product_id)
-            ->where('size', $item->size)
-            ->lockForUpdate()
-            ->first();
-        $grade->decrement('stock', $item->quantity);
-    });
-    ```
+
+4. **Criptografia Bidirecional (AES-256) e Blind Index:**  
+   `cpf`, `phone` e `birth_date` utilizam o cast seguro `SafeEncrypted`. A busca por CPF é feita com o índice cego `cpf_hash`.
+
+5. **Ofuscação de IDs (Hashids):**  
+   Chaves primárias e estrangeiras expostas via JSON são convertidas em IDs ofuscados (ex: strings de 22 caracteres), prevenindo ataques de enumeração/IDOR.
 
 ---
 

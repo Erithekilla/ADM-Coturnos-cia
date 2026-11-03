@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\AuditLog;
-use App\Models\Usuario;
+use App\Models\User;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -33,10 +33,10 @@ class AuditLogger
         ?array $old = null,
         ?array $new = null,
         ?string $descricao = null,
-        ?Usuario $actor = null,
+        ?User $actor = null,
     ): void {
         $request = request();
-        $actor ??= $request?->user() instanceof Usuario ? $request->user() : null;
+        $actor ??= $request?->user() instanceof User ? $request->user() : null;
 
         $oldClean = $old !== null ? self::sanitize($old) : null;
         $newClean = $new !== null ? self::sanitize($new) : null;
@@ -52,7 +52,7 @@ class AuditLogger
             'new_values'     => $newClean,
             'ip_address'     => $ip,
             // colunas legadas do painel
-            'autor'          => $actor ? trim(($actor->nome ?? 'Usuário') . ' ' . ($actor->sobrenome ?? '')) . ' (' . self::maskEmail((string) $actor->email) . ')' : 'Sistema',
+            'autor'          => $actor ? trim(($actor->first_name ?? $actor->nome ?? 'Usuário') . ' ' . ($actor->last_name ?? $actor->sobrenome ?? '')) . ' (' . self::maskEmail((string) $actor->email) . ')' : 'Sistema',
             'acao'           => $action,
             'tabela'         => $table,
             'registro_id'    => (int) ($recordId ?? 0),

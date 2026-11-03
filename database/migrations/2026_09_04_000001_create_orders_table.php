@@ -8,22 +8,18 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('orders')) {
+            return;
+        }
+
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->string('order_number', 20)->unique();
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->decimal('total_amount', 10, 2)->default(0.00);
+            $table->string('status', 50)->nullable()->default('pendente');
+            $table->string('tracking_code', 100)->nullable();
+            $table->dateTime('order_date')->nullable();
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
             $table->foreignId('address_id')->nullable()->constrained('addresses')->onDelete('set null');
-            $table->enum('status', [
-                'pending', 'paid', 'preparing', 'shipped', 'delivered', 'cancelled',
-                'pendente', 'pago', 'em_separacao', 'enviado', 'entregue', 'cancelado'
-            ])->default('pending');
-            $table->decimal('subtotal', 10, 2);
-            $table->decimal('shipping_fee', 10, 2)->default(0.00);
-            $table->decimal('discount_fee', 10, 2)->default(0.00);
-            $table->decimal('total_amount', 10, 2);
-            $table->string('shipping_method', 50)->nullable();
-            $table->string('tracking_code', 50)->nullable();
-            $table->timestamps();
         });
     }
 
@@ -32,4 +28,3 @@ return new class extends Migration
         Schema::dropIfExists('orders');
     }
 };
-

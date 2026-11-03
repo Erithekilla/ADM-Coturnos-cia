@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Pedido;
-use App\Models\TamanhoProduto;
-use App\Models\HistoricoPedido;
+use App\Models\Order;
+use App\Models\ProductSize;
+use App\Models\OrderHistory;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class AdminPedidoController extends Controller
 {
@@ -18,11 +19,17 @@ class AdminPedidoController extends Controller
         'enviado' => ['entregue'],
         'entregue' => [],
         'cancelado' => [],
+        'pending' => ['paid', 'cancelled'],
+        'paid' => ['preparing', 'cancelled'],
+        'preparing' => ['shipped', 'cancelled'],
+        'shipped' => ['delivered'],
+        'delivered' => [],
+        'cancelled' => [],
     ];
 
     public function updateStatus(Request $request, $id): JsonResponse
     {
-        $pedido = Pedido::findByHashid($id, ['itens']);
+        $pedido = Order::findByHashid($id, ['items']);
 
         if (!$pedido) {
             return response()->json([
@@ -34,15 +41,16 @@ class AdminPedidoController extends Controller
         $request->validate([
             'status' => 'required|string',
             'codigo_rastreio' => 'nullable|string|max:100',
+            'tracking_code' => 'nullable|string|max:100',
         ]);
 
         $statusAtual = strtolower(trim((string)$pedido->status));
         $novoStatus = strtolower(trim((string)$request->input('status')));
-        $codigoRastreio = $request->input('codigo_rastreio');
+        $codigoRastreio = $request->input('tracking_code') ?: $request->input('codigo_rastreio');
 
         if ($statusAtual === $novoStatus) {
-            if ($codigoRastreio && \Illuminate\Support\Facades\Schema::hasColumn('pedido', 'codigo_rastreio')) {
-                $pedido->codigo_rastreio = $codigoRastreio;
+            if ($codigoRastreio) {
+                $pedido->tracking_code = $codigoRastreio;
                 $pedido->save();
             }
             return response()->json([
@@ -62,11 +70,11 @@ class AdminPedidoController extends Controller
             }
         }
 
-        if ($novoStatus === 'enviado') {
-            if (empty($codigoRastreio) && empty($pedido->codigo_rastreio)) {
+        if ($novoStatus === 'enviado' || $novoStatus === 'shipped') {
+            if (empty($codigoRastreio) && empty($pedido->tracking_code)) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => "O campo 'codigo_rastreio' é obrigatório para transitar o pedido para o status 'enviado'."
+                    'message' => "O campo de rastreio (tracking_code) é obrigatório para transitar o pedido para o status 'enviado'."
                 ], 422);
             }
         }
@@ -76,43 +84,43 @@ class AdminPedidoController extends Controller
 
             $pedido->status = $novoStatus;
             if (!empty($codigoRastreio)) {
-                $pedido->codigo_rastreio = $codigoRastreio;
+                $pedido->tracking_code = $codigoRastreio;
             }
             $pedido->save();
 
-            if ($novoStatus === 'cancelado') {
-                foreach ($pedido->itens as $item) {
-                    $query = TamanhoProduto::where('produtos_id', $item->produtos_id);
-                    if (!empty($item->tamanho)) {
-                        $query->where('tamanho', $item->tamanho);
+            if ($novoStatus === 'cancelado' || $novoStatus === 'cancelled') {
+                foreach ($pedido->items as $item) {
+                    $query = ProductSize::where('product_id', $item->product_id);
+                    if (!empty($item->size)) {
+                        $query->where('size', $item->size);
                     }
-                    $query->increment('quantidade', (int) ($item->quantidade ?: 1));
+                    $query->increment('quantity', (int) ($item->quantity ?: 1));
                 }
             }
 
             $statusInt = match ($novoStatus) {
-                'cancelado' => 0,
-                'pendente' => 1,
-                'pago' => 2,
-                'em_separacao' => 3,
-                'enviado' => 4,
-                'entregue' => 5,
+                'cancelado', 'cancelled' => 0,
+                'pendente', 'pending' => 1,
+                'pago', 'paid' => 2,
+                'em_separacao', 'preparing' => 3,
+                'enviado', 'shipped' => 4,
+                'entregue', 'delivered' => 5,
                 default => 1,
             };
 
-            HistoricoPedido::create([
-                'pedido_id' => $pedido->id,
+            OrderHistory::create([
+                'order_id' => $pedido->id,
                 'status' => $statusInt,
-                'data_status' => now(),
-                'observacao' => "Status atualizado para '{$novoStatus}'" . ($codigoRastreio ? " (Rastreio: {$codigoRastreio})" : ""),
+                'status_date' => now(),
+                'notes' => "Status atualizado para '{$novoStatus}'" . ($codigoRastreio ? " (Rastreio: {$codigoRastreio})" : ""),
             ]);
 
             DB::commit();
 
             return response()->json([
                 'status' => 'success',
-                'message' => "Status do pedido #{$pedido->hashid} atualizado para '{$novoStatus}' com sucesso!" . ($novoStatus === 'cancelado' ? " (Estoque estornado automaticamente)." : ""),
-                'data' => $pedido->fresh(['itens', 'usuario', 'endereco'])
+                'message' => "Status do pedido #{$pedido->hashid} atualizado para '{$novoStatus}' com sucesso!" . (in_array($novoStatus, ['cancelado', 'cancelled']) ? " (Estoque estornado automaticamente)." : ""),
+                'data' => $pedido->fresh(['items', 'user', 'address'])
             ], 200);
 
         } catch (\Exception $e) {
@@ -121,4 +129,3 @@ class AdminPedidoController extends Controller
         }
     }
 }
-

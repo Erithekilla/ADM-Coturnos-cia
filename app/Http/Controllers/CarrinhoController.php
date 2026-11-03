@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Carrinho;
-use App\Models\ItensCarrinho;
-use App\Models\Produto;
-use App\Models\Usuario;
+use App\Models\Cart;
+use App\Models\CartItem;
+use App\Models\Product;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -13,7 +13,7 @@ class CarrinhoController extends Controller
 {
     public function index(): JsonResponse
     {
-        $data = Carrinho::with(['usuario', 'itens.produto'])->paginate(20);
+        $data = Cart::with(['user', 'items.product'])->paginate(20);
         return response()->json([
             'status' => 'success',
             'data' => $data
@@ -22,15 +22,21 @@ class CarrinhoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->decodeHashids($request, ['usuario_id' => \App\Models\Usuario::class]);
-
-        $validated = $request->validate([
-            'usuario_id' => 'required|integer|exists:usuario,id',
-            'criado_em' => 'required|date',
-            'atualizado_em' => 'required|date',
+        $this->decodeHashids($request, [
+            'usuario_id' => User::class,
+            'user_id' => User::class,
         ]);
 
-        $record = Carrinho::create($validated);
+        $userId = $request->input('user_id') ?: $request->input('usuario_id');
+        $request->merge(['user_id' => $userId]);
+
+        $validated = $request->validate([
+            'user_id' => 'required|integer|exists:users,id',
+            'created_at' => 'nullable|date',
+            'updated_at' => 'nullable|date',
+        ]);
+
+        $record = Cart::create($validated);
 
         return response()->json([
             'status' => 'success',
@@ -41,7 +47,7 @@ class CarrinhoController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = Carrinho::with(['usuario', 'itens.produto'])->find($id);
+        $record = Cart::with(['user', 'items.product'])->find($id);
 
         if (!$record) {
             return response()->json([
@@ -58,9 +64,12 @@ class CarrinhoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $this->decodeHashids($request, ['usuario_id' => \App\Models\Usuario::class]);
+        $this->decodeHashids($request, [
+            'usuario_id' => User::class,
+            'user_id' => User::class,
+        ]);
 
-        $record = Carrinho::find($id);
+        $record = Cart::find($id);
 
         if (!$record) {
             return response()->json([
@@ -69,10 +78,13 @@ class CarrinhoController extends Controller
             ], 404);
         }
 
+        $userId = $request->input('user_id') ?: $request->input('usuario_id');
+        $request->merge(['user_id' => $userId]);
+
         $validated = $request->validate([
-            'usuario_id' => 'required|integer|exists:usuario,id',
-            'criado_em' => 'required|date',
-            'atualizado_em' => 'required|date',
+            'user_id' => 'required|integer|exists:users,id',
+            'created_at' => 'nullable|date',
+            'updated_at' => 'nullable|date',
         ]);
 
         $record->update($validated);
@@ -86,7 +98,7 @@ class CarrinhoController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $record = Carrinho::find($id);
+        $record = Cart::find($id);
 
         if (!$record) {
             return response()->json([
@@ -131,37 +143,44 @@ class CarrinhoController extends Controller
             ], 401);
         }
 
-        $this->decodeHashids($request, ['produto_id' => Produto::class]);
+        $this->decodeHashids($request, [
+            'produto_id' => Product::class,
+            'product_id' => Product::class,
+        ]);
+
+        $productId = (int) ($request->input('product_id') ?: $request->input('produto_id'));
+        $request->merge(['product_id' => $productId]);
 
         $request->validate([
-            'produto_id' => 'required|integer|exists:produtos,id',
+            'product_id' => 'required|integer|exists:products,id',
             'quantidade' => 'nullable|integer|min:1',
+            'quantity' => 'nullable|integer|min:1',
             'tamanho' => 'nullable|integer',
+            'size' => 'nullable|integer',
         ]);
 
         $carrinho = $this->obterOuCriarCarrinho($usuario->id);
-        $produtoId = (int) $request->produto_id;
-        $quantidade = (int) ($request->quantidade ?? 1);
-        $tamanho = (int) ($request->tamanho ?? 40);
+        $quantidade = (int) ($request->input('quantity') ?: $request->input('quantidade') ?: 1);
+        $tamanho = (int) ($request->input('size') ?: $request->input('tamanho') ?: 40);
 
-        $item = ItensCarrinho::where('carrinho_id_carrinho', $carrinho->id_carrinho)
-            ->where('produtos_id', $produtoId)
+        $item = CartItem::where('cart_id', $carrinho->id)
+            ->where('product_id', $productId)
             ->first();
 
         if ($item) {
-            $item->quantidade += $quantidade;
-            $item->tamanho = $tamanho;
+            $item->quantity += $quantidade;
+            $item->size = $tamanho;
             $item->save();
         } else {
-            ItensCarrinho::create([
-                'carrinho_id_carrinho' => $carrinho->id_carrinho,
-                'produtos_id' => $produtoId,
-                'quantidade' => $quantidade,
-                'tamanho' => $tamanho,
+            CartItem::create([
+                'cart_id' => $carrinho->id,
+                'product_id' => $productId,
+                'quantity' => $quantidade,
+                'size' => $tamanho,
             ]);
         }
 
-        $carrinho->update(['atualizado_em' => now()]);
+        $carrinho->touch();
 
         return response()->json([
             'status' => 'success',
@@ -180,19 +199,25 @@ class CarrinhoController extends Controller
             ], 401);
         }
 
-        $this->decodeHashids($request, ['produto_id' => Produto::class]);
+        $this->decodeHashids($request, [
+            'produto_id' => Product::class,
+            'product_id' => Product::class,
+        ]);
+
+        $productId = (int) ($request->input('product_id') ?: $request->input('produto_id'));
+        $request->merge(['product_id' => $productId]);
 
         $request->validate([
-            'produto_id' => 'required|integer|exists:produtos,id',
+            'product_id' => 'required|integer|exists:products,id',
             'delta' => 'nullable|integer',
             'quantidade' => 'nullable|integer',
+            'quantity' => 'nullable|integer',
         ]);
 
         $carrinho = $this->obterOuCriarCarrinho($usuario->id);
-        $produtoId = (int) $request->produto_id;
 
-        $item = ItensCarrinho::where('carrinho_id_carrinho', $carrinho->id_carrinho)
-            ->where('produtos_id', $produtoId)
+        $item = CartItem::where('cart_id', $carrinho->id)
+            ->where('product_id', $productId)
             ->first();
 
         if (!$item) {
@@ -203,19 +228,19 @@ class CarrinhoController extends Controller
         }
 
         if ($request->has('delta')) {
-            $novaQtd = $item->quantidade + (int) $request->delta;
+            $novaQtd = $item->quantity + (int) $request->delta;
         } else {
-            $novaQtd = (int) $request->quantidade;
+            $novaQtd = (int) ($request->input('quantity') ?: $request->input('quantidade'));
         }
 
         if ($novaQtd <= 0) {
             $item->delete();
         } else {
-            $item->quantidade = $novaQtd;
+            $item->quantity = $novaQtd;
             $item->save();
         }
 
-        $carrinho->update(['atualizado_em' => now()]);
+        $carrinho->touch();
 
         return response()->json([
             'status' => 'success',
@@ -234,19 +259,20 @@ class CarrinhoController extends Controller
             ], 401);
         }
 
-        $this->decodeHashids($request, ['produto_id' => Produto::class]);
-
-        $request->validate([
-            'produto_id' => 'required|integer',
+        $this->decodeHashids($request, [
+            'produto_id' => Product::class,
+            'product_id' => Product::class,
         ]);
+
+        $productId = (int) ($request->input('product_id') ?: $request->input('produto_id'));
 
         $carrinho = $this->obterOuCriarCarrinho($usuario->id);
 
-        ItensCarrinho::where('carrinho_id_carrinho', $carrinho->id_carrinho)
-            ->where('produtos_id', $request->produto_id)
+        CartItem::where('cart_id', $carrinho->id)
+            ->where('product_id', $productId)
             ->delete();
 
-        $carrinho->update(['atualizado_em' => now()]);
+        $carrinho->touch();
 
         return response()->json([
             'status' => 'success',
@@ -267,18 +293,21 @@ class CarrinhoController extends Controller
 
         $carrinho = $this->obterOuCriarCarrinho($usuario->id);
 
-        ItensCarrinho::where('carrinho_id_carrinho', $carrinho->id_carrinho)->delete();
+        CartItem::where('cart_id', $carrinho->id)->delete();
 
-        $carrinho->update(['atualizado_em' => now()]);
+        $carrinho->touch();
 
         return response()->json([
             'status' => 'success',
             'message' => 'Carrinho esvaziado!',
             'data' => [
-                'id_carrinho' => $carrinho->id_carrinho,
+                'id_carrinho' => $carrinho->id,
+                'cart_id' => $carrinho->id,
                 'itens' => [],
+                'items' => [],
                 'subtotal' => 0,
-                'quantidade_total' => 0
+                'quantidade_total' => 0,
+                'total_quantity' => 0,
             ]
         ], 200);
     }
@@ -294,36 +323,36 @@ class CarrinhoController extends Controller
         }
 
         $carrinho = $this->obterOuCriarCarrinho($usuario->id);
-        $itens = $request->input('itens', []);
+        $itens = $request->input('items', $request->input('itens', []));
 
         if (is_array($itens)) {
             foreach ($itens as $it) {
-                $pId = (int) Produto::decodeHashid($it['id'] ?? null);
-                $qtd = (int) ($it['quantity'] ?? 1);
-                $tam = (int) ($it['size'] ?? 40);
+                $pId = (int) Product::decodeHashid($it['id'] ?? null);
+                $qtd = (int) ($it['quantity'] ?? $it['quantidade'] ?? 1);
+                $tam = (int) ($it['size'] ?? $it['tamanho'] ?? 40);
 
-                if ($pId > 0 && Produto::where('id', $pId)->exists()) {
-                    $existente = ItensCarrinho::where('carrinho_id_carrinho', $carrinho->id_carrinho)
-                        ->where('produtos_id', $pId)
+                if ($pId > 0 && Product::where('id', $pId)->exists()) {
+                    $existente = CartItem::where('cart_id', $carrinho->id)
+                        ->where('product_id', $pId)
                         ->first();
 
                     if ($existente) {
-                        $existente->quantidade = max($existente->quantidade, $qtd);
-                        $existente->tamanho = $tam;
+                        $existente->quantity = max($existente->quantity, $qtd);
+                        $existente->size = $tam;
                         $existente->save();
                     } else {
-                        ItensCarrinho::create([
-                            'carrinho_id_carrinho' => $carrinho->id_carrinho,
-                            'produtos_id' => $pId,
-                            'quantidade' => $qtd,
-                            'tamanho' => $tam,
+                        CartItem::create([
+                            'cart_id' => $carrinho->id,
+                            'product_id' => $pId,
+                            'quantity' => $qtd,
+                            'size' => $tam,
                         ]);
                     }
                 }
             }
         }
 
-        $carrinho->update(['atualizado_em' => now()]);
+        $carrinho->touch();
 
         return response()->json([
             'status' => 'success',
@@ -334,12 +363,10 @@ class CarrinhoController extends Controller
 
     private function obterOuCriarCarrinho($usuarioId)
     {
-        $carrinho = Carrinho::where('usuario_id', $usuarioId)->first();
+        $carrinho = Cart::where('user_id', $usuarioId)->first();
         if (!$carrinho) {
-            $carrinho = Carrinho::create([
-                'usuario_id' => $usuarioId,
-                'criado_em' => now(),
-                'atualizado_em' => now()
+            $carrinho = Cart::create([
+                'user_id' => $usuarioId,
             ]);
         }
         return $carrinho;
@@ -347,27 +374,27 @@ class CarrinhoController extends Controller
 
     private function formatarCarrinho($carrinho)
     {
-        $itensDB = ItensCarrinho::where('carrinho_id_carrinho', $carrinho->id_carrinho)
-            ->with(['produto.precos', 'produto.imagens'])
+        $itensDB = CartItem::where('cart_id', $carrinho->id)
+            ->with(['product.prices', 'product.images'])
             ->get();
 
         $itensFormatados = [];
         $subtotal = 0;
 
         foreach ($itensDB as $item) {
-            $produto = $item->produto;
+            $produto = $item->product;
             if (!$produto) continue;
 
-            $preco = $produto->precos->first()->preco ?? 0;
-            $imagem = $produto->imagens->first()->url_imagem ?? '/coturno1.jpeg';
-            $cor = 'preto';
-            $tamanho = $item->tamanho ?: 40;
+            $preco = $produto->prices->first()->price ?? 0;
+            $imagem = $produto->images->first()->image_url ?? '/coturno1.jpeg';
+            $cor = $produto->color ?: 'preto';
+            $tamanho = $item->size ?: 40;
 
             $itemObj = [
                 'id' => $produto->hashid,
-                'name' => $produto->modelo,
+                'name' => $produto->model,
                 'price' => (float) $preco,
-                'quantity' => (int) $item->quantidade,
+                'quantity' => (int) $item->quantity,
                 'size' => $tamanho,
                 'color' => $cor,
                 'image' => $imagem,
@@ -379,10 +406,13 @@ class CarrinhoController extends Controller
         }
 
         return [
-            'id_carrinho' => $carrinho->id_carrinho,
+            'id_carrinho' => $carrinho->id,
+            'cart_id' => $carrinho->id,
             'itens' => $itensFormatados,
+            'items' => $itensFormatados,
             'subtotal' => $subtotal,
-            'quantidade_total' => array_sum(array_column($itensFormatados, 'quantity'))
+            'quantidade_total' => array_sum(array_column($itensFormatados, 'quantity')),
+            'total_quantity' => array_sum(array_column($itensFormatados, 'quantity'))
         ];
     }
 
@@ -390,11 +420,10 @@ class CarrinhoController extends Controller
      * Usuário dono do token Sanctum (rotas sob auth:sanctum).
      * Escopo obrigatório: nunca aceita usuario_id vindo do cliente (anti-IDOR).
      */
-    private function getAuthenticatedUser(Request $request): ?Usuario
+    private function getAuthenticatedUser(Request $request): ?User
     {
         $user = $request->user();
 
-        return $user instanceof Usuario && $user->isActive() ? $user : null;
+        return $user instanceof User && $user->isActive() ? $user : null;
     }
 }
-

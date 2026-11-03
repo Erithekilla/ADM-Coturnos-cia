@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ColecaoHasProduto;
+use App\Models\CollectionProduct;
+use App\Models\Collection;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -10,7 +12,7 @@ class ColecaoHasProdutoController extends Controller
 {
     public function index(): JsonResponse
     {
-        $data = ColecaoHasProduto::with(['colecao', 'produto'])->paginate(20);
+        $data = CollectionProduct::with(['collection', 'product'])->paginate(20);
         return response()->json([
             'status' => 'success',
             'data' => $data
@@ -19,30 +21,41 @@ class ColecaoHasProdutoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
-
-        $validated = $request->validate([
-            'id_colecao' => 'required|integer|exists:colecao,id_colecao',
-            'produtos_id' => 'required|integer|exists:produtos,id',
+        $this->decodeHashids($request, [
+            'produtos_id' => Product::class,
+            'product_id' => Product::class,
         ]);
 
-        $record = ColecaoHasProduto::create($validated);
+        $collectionId = $request->input('collection_id') ?: $request->input('id_colecao');
+        $productId = $request->input('product_id') ?: $request->input('produtos_id');
+
+        $request->merge([
+            'collection_id' => $collectionId,
+            'product_id' => $productId,
+        ]);
+
+        $validated = $request->validate([
+            'collection_id' => 'required|integer|exists:collections,id',
+            'product_id' => 'required|integer|exists:products,id',
+        ]);
+
+        $record = CollectionProduct::create($validated);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'ColecaoHasProduto criado com sucesso!',
+            'message' => 'Produto associado à coleção com sucesso!',
             'data' => $record
         ], 201);
     }
 
     public function show($id): JsonResponse
     {
-        $record = ColecaoHasProduto::with(['colecao', 'produto'])->find($id);
+        $record = CollectionProduct::with(['collection', 'product'])->find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'ColecaoHasProduto não encontrado.'
+                'message' => 'Relação coleção-produto não encontrada.'
             ], 404);
         }
 
@@ -54,39 +67,43 @@ class ColecaoHasProdutoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
+        $this->decodeHashids($request, [
+            'produtos_id' => Product::class,
+            'product_id' => Product::class,
+        ]);
 
-        $record = ColecaoHasProduto::find($id);
+        $record = CollectionProduct::find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'ColecaoHasProduto não encontrado.'
+                'message' => 'Relação coleção-produto não encontrada.'
             ], 404);
         }
 
-        $validated = $request->validate([
-            'id_colecao' => 'required|integer|exists:colecao,id_colecao',
-            'produtos_id' => 'required|integer|exists:produtos,id',
-        ]);
+        $collectionId = $request->input('collection_id') ?: $request->input('id_colecao') ?: $record->collection_id;
+        $productId = $request->input('product_id') ?: $request->input('produtos_id') ?: $record->product_id;
 
-        $record->update($validated);
+        $record->update([
+            'collection_id' => $collectionId,
+            'product_id' => $productId,
+        ]);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'ColecaoHasProduto atualizado com sucesso!',
+            'message' => 'Relação coleção-produto atualizada com sucesso!',
             'data' => $record
         ], 200);
     }
 
     public function destroy($id): JsonResponse
     {
-        $record = ColecaoHasProduto::find($id);
+        $record = CollectionProduct::find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'ColecaoHasProduto não encontrado.'
+                'message' => 'Relação coleção-produto não encontrada.'
             ], 404);
         }
 
@@ -94,8 +111,7 @@ class ColecaoHasProdutoController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'ColecaoHasProduto removido com sucesso!'
+            'message' => 'Relação coleção-produto removida com sucesso!'
         ], 200);
     }
 }
-

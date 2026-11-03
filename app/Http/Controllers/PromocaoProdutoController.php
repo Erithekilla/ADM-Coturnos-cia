@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PromocaoProduto;
+use App\Models\ProductPromotion;
+use App\Models\ProductPrice;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -10,7 +11,7 @@ class PromocaoProdutoController extends Controller
 {
     public function index(): JsonResponse
     {
-        $data = PromocaoProduto::with(['preco'])->paginate(20);
+        $data = ProductPromotion::with(['price'])->paginate(20);
         return response()->json([
             'status' => 'success',
             'data' => $data
@@ -19,34 +20,46 @@ class PromocaoProdutoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'valor_promo' => 'required|numeric',
-            'data_inicio' => 'required|date',
-            'data_fim' => 'required|date|after_or_equal:data_inicio',
-            'ativo' => 'nullable|string',
-            'precos_id_precos' => 'required|integer|exists:precos,id_precos',
+        $priceId = $request->input('price_id') ?: $request->input('precos_id_precos');
+        $promoPrice = $request->input('promotional_price') ?: $request->input('valor_promo');
+        $startDate = $request->input('start_date') ?: $request->input('data_inicio');
+        $endDate = $request->input('end_date') ?: $request->input('data_fim');
+        $activeRaw = $request->input('active', $request->input('ativo', 1));
+        $active = (in_array((string)$activeRaw, ['0', 'inativo', 'Inativo', 'false'])) ? 0 : 1;
+
+        $request->merge([
+            'price_id' => $priceId,
+            'promotional_price' => $promoPrice,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'active' => $active,
         ]);
 
-        $ativoRaw = $request->input('ativo') ?: 'ativo';
-        $validated['ativo'] = in_array((string)$ativoRaw, ['0', 'inativo', 'Inativo']) ? 'inativo' : 'ativo';
+        $validated = $request->validate([
+            'promotional_price' => 'required|numeric',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+            'active' => 'nullable|integer|in:0,1',
+            'price_id' => 'required|integer|exists:product_prices,id',
+        ]);
 
-        $record = PromocaoProduto::create($validated);
+        $record = ProductPromotion::create($validated);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'PromocaoProduto criado com sucesso!',
+            'message' => 'Promoção criada com sucesso!',
             'data' => $record
         ], 201);
     }
 
     public function show($id): JsonResponse
     {
-        $record = PromocaoProduto::with(['preco'])->find($id);
+        $record = ProductPromotion::with(['price'])->find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'PromocaoProduto não encontrado.'
+                'message' => 'Promoção não encontrada.'
             ], 404);
         }
 
@@ -58,45 +71,49 @@ class PromocaoProdutoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $record = PromocaoProduto::find($id);
+        $record = ProductPromotion::find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'PromocaoProduto não encontrado.'
+                'message' => 'Promoção não encontrada.'
             ], 404);
         }
 
-        $validated = $request->validate([
-            'valor_promo' => 'required|numeric',
-            'data_inicio' => 'required|date',
-            'data_fim' => 'required|date|after_or_equal:data_inicio',
-            'ativo' => 'nullable|string',
-            'precos_id_precos' => 'required|integer|exists:precos,id_precos',
-        ]);
+        $priceId = $request->input('price_id') ?: $request->input('precos_id_precos') ?: $record->price_id;
+        $promoPrice = $request->input('promotional_price') ?: $request->input('valor_promo') ?: $record->promotional_price;
+        $startDate = $request->input('start_date') ?: $request->input('data_inicio') ?: $record->start_date;
+        $endDate = $request->input('end_date') ?: $request->input('data_fim') ?: $record->end_date;
 
-        if ($request->has('ativo')) {
-            $ativoRaw = $request->input('ativo');
-            $validated['ativo'] = in_array((string)$ativoRaw, ['0', 'inativo', 'Inativo']) ? 'inativo' : 'ativo';
+        $active = $record->active;
+        if ($request->has('active') || $request->has('ativo')) {
+            $activeRaw = $request->input('active', $request->input('ativo'));
+            $active = (in_array((string)$activeRaw, ['0', 'inativo', 'Inativo', 'false'])) ? 0 : 1;
         }
 
-        $record->update($validated);
+        $record->update([
+            'price_id' => $priceId,
+            'promotional_price' => $promoPrice,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'active' => $active,
+        ]);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'PromocaoProduto atualizado com sucesso!',
+            'message' => 'Promoção atualizada com sucesso!',
             'data' => $record
         ], 200);
     }
 
     public function destroy($id): JsonResponse
     {
-        $record = PromocaoProduto::find($id);
+        $record = ProductPromotion::find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'PromocaoProduto não encontrado.'
+                'message' => 'Promoção não encontrada.'
             ], 404);
         }
 
@@ -104,8 +121,7 @@ class PromocaoProdutoController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'PromocaoProduto removido com sucesso!'
+            'message' => 'Promoção removida com sucesso!'
         ], 200);
     }
 }
-

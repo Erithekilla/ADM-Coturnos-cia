@@ -29,34 +29,44 @@ return new class extends Migration
      */
     private function hardenUsuario(): void
     {
-        if (!Schema::hasTable('usuario')) {
+        $targetTable = Schema::hasTable('users') ? 'users' : (Schema::hasTable('usuario') ? 'usuario' : null);
+        if (!$targetTable) {
             return;
         }
 
         // CPF e nascimento passam a guardar o payload cifrado (string longa).
-        Schema::table('usuario', function (Blueprint $table) {
-            $table->string('cpf', 512)->nullable()->change();
+        Schema::table($targetTable, function (Blueprint $table) use ($targetTable) {
+            if (Schema::hasColumn($targetTable, 'cpf')) {
+                $table->string('cpf', 512)->nullable()->change();
+            }
 
-            if (Schema::hasColumn('usuario', 'data_nascimento')) {
-                $table->string('data_nascimento', 512)->nullable()->change();
+            $birthCol = Schema::hasColumn($targetTable, 'birth_date') ? 'birth_date' : (Schema::hasColumn($targetTable, 'data_nascimento') ? 'data_nascimento' : null);
+            if ($birthCol) {
+                $table->string($birthCol, 512)->nullable()->change();
             }
         });
 
-        Schema::table('usuario', function (Blueprint $table) {
-            if (!Schema::hasColumn('usuario', 'data_nascimento')) {
-                $table->string('data_nascimento', 512)->nullable();
+        Schema::table($targetTable, function (Blueprint $table) use ($targetTable) {
+            $birthCol = Schema::hasColumn($targetTable, 'birth_date') ? 'birth_date' : 'data_nascimento';
+            if (!Schema::hasColumn($targetTable, $birthCol)) {
+                $table->string($birthCol, 512)->nullable();
             }
-            if (!Schema::hasColumn('usuario', 'telefone')) {
-                $table->string('telefone', 512)->nullable();
+
+            $phoneCol = Schema::hasColumn($targetTable, 'phone') ? 'phone' : 'telefone';
+            if (!Schema::hasColumn($targetTable, $phoneCol)) {
+                $table->string($phoneCol, 512)->nullable();
             }
-            if (!Schema::hasColumn('usuario', 'cpf_hash')) {
+
+            if (!Schema::hasColumn($targetTable, 'cpf_hash')) {
                 $table->char('cpf_hash', 64)->nullable()->unique();
             }
-            if (!Schema::hasColumn('usuario', 'status')) {
+            if (!Schema::hasColumn($targetTable, 'status')) {
                 $table->string('status', 20)->nullable()->default('ativo');
             }
-            if (!Schema::hasColumn('usuario', 'excluido')) {
-                $table->char('excluido', 1)->nullable()->default('N');
+
+            $delCol = Schema::hasColumn($targetTable, 'is_deleted') ? 'is_deleted' : 'excluido';
+            if (!Schema::hasColumn($targetTable, $delCol)) {
+                $table->char($delCol, 1)->nullable()->default('N');
             }
         });
     }

@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\TamanhoProduto;
+use App\Models\ProductSize;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -10,7 +11,7 @@ class TamanhoProdutoController extends Controller
 {
     public function index(): JsonResponse
     {
-        $data = TamanhoProduto::with(['produto'])->paginate(20);
+        $data = ProductSize::with(['product'])->paginate(20);
         return response()->json([
             'status' => 'success',
             'data' => $data
@@ -19,31 +20,44 @@ class TamanhoProdutoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
-
-        $validated = $request->validate([
-            'produtos_id' => 'required|integer|exists:produtos,id',
-            'tamanho' => 'required|integer',
-            'quantidade' => 'required|integer|min:0',
+        $this->decodeHashids($request, [
+            'produtos_id' => Product::class,
+            'product_id' => Product::class,
         ]);
 
-        $record = TamanhoProduto::create($validated);
+        $productId = $request->input('product_id') ?: $request->input('produtos_id');
+        $size = $request->input('size') ?: $request->input('tamanho');
+        $quantity = $request->input('quantity', $request->input('quantidade', 0));
+
+        $request->merge([
+            'product_id' => $productId,
+            'size' => $size,
+            'quantity' => $quantity,
+        ]);
+
+        $validated = $request->validate([
+            'product_id' => 'required|integer|exists:products,id',
+            'size' => 'required|integer',
+            'quantity' => 'required|integer|min:0',
+        ]);
+
+        $record = ProductSize::create($validated);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'TamanhoProduto criado com sucesso!',
+            'message' => 'Tamanho criado com sucesso!',
             'data' => $record
         ], 201);
     }
 
     public function show($id): JsonResponse
     {
-        $record = TamanhoProduto::with(['produto'])->find($id);
+        $record = ProductSize::with(['product'])->find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'TamanhoProduto não encontrado.'
+                'message' => 'Tamanho não encontrado.'
             ], 404);
         }
 
@@ -55,40 +69,45 @@ class TamanhoProdutoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
+        $this->decodeHashids($request, [
+            'produtos_id' => Product::class,
+            'product_id' => Product::class,
+        ]);
 
-        $record = TamanhoProduto::find($id);
+        $record = ProductSize::find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'TamanhoProduto não encontrado.'
+                'message' => 'Tamanho não encontrado.'
             ], 404);
         }
 
-        $validated = $request->validate([
-            'produtos_id' => 'required|integer|exists:produtos,id',
-            'tamanho' => 'required|integer',
-            'quantidade' => 'required|integer|min:0',
-        ]);
+        $productId = $request->input('product_id') ?: $request->input('produtos_id') ?: $record->product_id;
+        $size = $request->input('size') ?: $request->input('tamanho') ?: $record->size;
+        $quantity = $request->input('quantity', $request->input('quantidade', $record->quantity));
 
-        $record->update($validated);
+        $record->update([
+            'product_id' => $productId,
+            'size' => $size,
+            'quantity' => $quantity,
+        ]);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'TamanhoProduto atualizado com sucesso!',
+            'message' => 'Tamanho atualizado com sucesso!',
             'data' => $record
         ], 200);
     }
 
     public function destroy($id): JsonResponse
     {
-        $record = TamanhoProduto::find($id);
+        $record = ProductSize::find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'TamanhoProduto não encontrado.'
+                'message' => 'Tamanho não encontrado.'
             ], 404);
         }
 
@@ -96,8 +115,7 @@ class TamanhoProdutoController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'TamanhoProduto removido com sucesso!'
+            'message' => 'Tamanho removido com sucesso!'
         ], 200);
     }
 }
-

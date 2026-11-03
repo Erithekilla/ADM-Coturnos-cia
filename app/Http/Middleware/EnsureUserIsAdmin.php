@@ -28,7 +28,7 @@ class EnsureUserIsAdmin
 
         // 2. Bloqueia contas inativas ou excluídas logicamente
         $status = strtolower((string) ($user->status ?? 'ativo'));
-        $excluido = strtoupper(trim((string) ($user->excluido ?? 'N')));
+        $excluido = strtoupper(trim((string) ($user->is_deleted ?? $user->excluido ?? 'N')));
 
         if ($status !== 'ativo' || $excluido === 'S') {
             return response()->json([

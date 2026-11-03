@@ -234,9 +234,9 @@ test('CPF e telefone ficam cifrados no banco e o cpf_hash permite busca', functi
         'cpf' => '123.456.789-09', 'phone' => '(11) 98765-4321', 'type' => 'Cliente',
     ])->assertCreated()->assertJsonStructure(['senha_temporaria']);
 
-    $raw = DB::table('usuario')->where('email', 'maria@teste.com')->first();
+    $raw = DB::table('users')->where('email', 'maria@teste.com')->first();
     expect($raw->cpf)->not->toContain('123')
-        ->and($raw->telefone)->not->toContain('98765')
+        ->and($raw->phone)->not->toContain('98765')
         ->and($raw->cpf_hash)->toBe(Usuario::generateCpfHash('12345678909'));
 
     $lista = $this->withToken(tokenDe($admin))->getJson('/api/v1/usuarios')->json('data');
@@ -269,13 +269,13 @@ test('CPF não pode ser alterado depois de registrado', function () {
 test('editar usuário não redefine a senha', function () {
     $admin = criarUsuario('admin');
     $cliente = criarUsuario('cliente');
-    $hashAntes = DB::table('usuario')->where('id', $cliente->id)->value('senha');
+    $hashAntes = DB::table('users')->where('id', $cliente->id)->value('password');
 
     $this->withToken(tokenDe($admin))
         ->putJson('/api/v1/usuarios/' . $cliente->hashid, ['nome' => 'Outro', 'type' => 'Cliente'])
         ->assertOk();
 
-    expect(DB::table('usuario')->where('id', $cliente->id)->value('senha'))->toBe($hashAntes);
+    expect(DB::table('users')->where('id', $cliente->id)->value('password'))->toBe($hashAntes);
 });
 
 // ---------------------------------------------------------------------------

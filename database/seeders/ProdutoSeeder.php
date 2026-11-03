@@ -3,10 +3,10 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Produto;
-use App\Models\Preco;
-use App\Models\ImagensProduto;
-use App\Models\TamanhoProduto;
+use App\Models\Product;
+use App\Models\ProductPrice;
+use App\Models\ProductImage;
+use App\Models\ProductSize;
 use Illuminate\Support\Facades\DB;
 
 class ProdutoSeeder extends Seeder
@@ -227,10 +227,10 @@ class ProdutoSeeder extends Seeder
         ];
 
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        TamanhoProduto::truncate();
-        ImagensProduto::truncate();
-        Preco::truncate();
-        Produto::truncate();
+        ProductSize::truncate();
+        ProductImage::truncate();
+        ProductPrice::truncate();
+        Product::truncate();
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         foreach ($produtosFrontend as $item) {
@@ -239,40 +239,40 @@ class ProdutoSeeder extends Seeder
             $clean = str_replace(',', '.', $clean);
             $precoNum = (float) $clean;
 
-            $produto = Produto::create([
+            $produto = Product::create([
                 'id' => $item['id'],
-                'tipo_do_produto' => substr($item['tipo'] ?? 'coturno', 0, 45),
-                'modelo' => substr($item['name'], 0, 45),
-                'marca' => substr($item['marca'] ?? 'Coturno & Cia', 0, 45),
-                'descricao' => substr(($item['material'] ?? '') . ' | ' . ($item['terreno'] ?? '') . ' | Cor: ' . ($item['cor'] ?? ''), 0, 255),
-                'ativo' => 1,
+                'product_type' => substr($item['tipo'] ?? 'coturno', 0, 45),
+                'model' => substr($item['name'], 0, 45),
+                'brand' => substr($item['marca'] ?? 'Coturno & Cia', 0, 45),
+                'description' => substr(($item['material'] ?? '') . ' | ' . ($item['terreno'] ?? '') . ' | Cor: ' . ($item['cor'] ?? ''), 0, 255),
+                'active' => 'ativo',
             ]);
 
-            Preco::create([
-                'preco' => $precoNum,
-                'alteracao' => now(),
-                'produtos_id' => $produto->id,
+            ProductPrice::create([
+                'price' => $precoNum,
+                'effective_date' => now(),
+                'product_id' => $produto->id,
             ]);
 
             if (!empty($item['image'])) {
-                ImagensProduto::create([
-                    'url_imagem' => $item['image'],
-                    'produtos_id' => $produto->id,
+                ProductImage::create([
+                    'image_url' => $item['image'],
+                    'product_id' => $produto->id,
                 ]);
             }
             if (!empty($item['hoverImage'])) {
-                ImagensProduto::create([
-                    'url_imagem' => $item['hoverImage'],
-                    'produtos_id' => $produto->id,
+                ProductImage::create([
+                    'image_url' => $item['hoverImage'],
+                    'product_id' => $produto->id,
                 ]);
             }
 
             if (!empty($item['tamanhos']) && is_array($item['tamanhos'])) {
                 foreach ($item['tamanhos'] as $tamanho) {
-                    TamanhoProduto::create([
-                        'produtos_id' => $produto->id,
-                        'tamanho' => (int) $tamanho,
-                        'quantidade' => 20,
+                    ProductSize::create([
+                        'product_id' => $produto->id,
+                        'size' => (int) $tamanho,
+                        'quantity' => 20,
                     ]);
                 }
             }

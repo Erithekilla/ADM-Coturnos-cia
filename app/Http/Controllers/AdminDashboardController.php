@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Usuario;
-use App\Models\Produto;
-use App\Models\Pedido;
-use App\Models\ItensPedido;
-use App\Models\TamanhoProduto;
+use App\Models\User;
+use App\Models\Product;
+use App\Models\Order;
+use App\Models\OrderItem;
+use App\Models\ProductSize;
+use App\Models\ProductPrice;
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -32,21 +33,21 @@ class AdminDashboardController extends Controller
             $mesAnterior = $dataMesPassado->month;
             $anoAnterior = $dataMesPassado->year;
 
-            $faturamentoMesAtual = (float) Pedido::whereMonth('data_pedido', $mesAtual)
-                ->whereYear('data_pedido', $anoAtual)
-                ->whereNotIn('status', ['cancelado', 'Cancelado'])
-                ->sum('valor_total');
+            $faturamentoMesAtual = (float) Order::whereMonth('order_date', $mesAtual)
+                ->whereYear('order_date', $anoAtual)
+                ->whereNotIn('status', ['cancelado', 'Cancelado', 'cancelled', 'Cancelled'])
+                ->sum('total_amount');
 
-            $faturamentoMesAnterior = (float) Pedido::whereMonth('data_pedido', $mesAnterior)
-                ->whereYear('data_pedido', $anoAnterior)
-                ->whereNotIn('status', ['cancelado', 'Cancelado'])
-                ->sum('valor_total');
+            $faturamentoMesAnterior = (float) Order::whereMonth('order_date', $mesAnterior)
+                ->whereYear('order_date', $anoAnterior)
+                ->whereNotIn('status', ['cancelado', 'Cancelado', 'cancelled', 'Cancelled'])
+                ->sum('total_amount');
 
-            $faturamentoTotal = (float) Pedido::whereNotIn('status', ['cancelado', 'Cancelado'])->sum('valor_total');
+            $faturamentoTotal = (float) Order::whereNotIn('status', ['cancelado', 'Cancelado', 'cancelled', 'Cancelled'])->sum('total_amount');
             if ($faturamentoTotal == 0) {
-                $faturamentoTotal = (float) DB::table('precos')
-                    ->join('tamanho_produtos', 'precos.produtos_id', '=', 'tamanho_produtos.produtos_id')
-                    ->sum(DB::raw('precos.preco * (tamanho_produtos.quantidade / 7)'));
+                $faturamentoTotal = (float) DB::table('product_prices')
+                    ->join('product_sizes', 'product_prices.product_id', '=', 'product_sizes.product_id')
+                    ->sum(DB::raw('product_prices.price * (product_sizes.quantity / 7)'));
             }
 
             $trendReceita = 0.0;
@@ -59,7 +60,7 @@ class AdminDashboardController extends Controller
             }
 
             // 2. Contagem de pedidos por status
-            $pedidosPorStatusRaw = Pedido::select('status', DB::raw('COUNT(*) as total'))
+            $pedidosPorStatusRaw = Order::select('status', DB::raw('COUNT(*) as total'))
                 ->groupBy('status')
                 ->pluck('total', 'status')
                 ->toArray();
@@ -71,46 +72,46 @@ class AdminDashboardController extends Controller
             }
 
             // 3. Alerta de estoque crítico (< 5 unidades)
-            $estoqueCriticoItens = TamanhoProduto::with('produto')
-                ->where('quantidade', '<', 5)
-                ->whereHas('produto', function ($q) {
-                    $q->whereNull('excluido')->orWhereRaw("TRIM(UPPER(COALESCE(excluido, 'N'))) != 'S'");
+            $estoqueCriticoItens = ProductSize::with('product')
+                ->where('quantity', '<', 5)
+                ->whereHas('product', function ($q) {
+                    $q->whereNull('is_deleted')->orWhereRaw("TRIM(UPPER(COALESCE(is_deleted, 'N'))) != 'S'");
                 })
                 ->get()
                 ->map(function ($t) {
                     return [
-                        'produtoId' => $t->produtos_id,
-                        'nome' => $t->produto?->modelo ?: 'Coturno #' . $t->produtos_id,
-                        'tamanho' => $t->tamanho,
-                        'quantidade' => (int) $t->quantidade,
+                        'produtoId' => $t->product_id,
+                        'nome' => $t->product?->model ?: 'Coturno #' . $t->product_id,
+                        'tamanho' => $t->size,
+                        'quantidade' => (int) $t->quantity,
                     ];
                 });
 
             // 4. Métricas Gerais
-            $totalClientes = Usuario::where('role', 'cliente')->count();
-            $totalPedidos = Pedido::count();
-            $totalEstoque = (int) TamanhoProduto::sum('quantidade');
+            $totalClientes = User::whereIn('role', ['customer', 'cliente'])->count();
+            $totalPedidos = Order::count();
+            $totalEstoque = (int) ProductSize::sum('quantity');
 
             // 5. Vendas mensais estruturadas (12 meses)
             $mesesNomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
             $vendasMensais = [];
 
-            $pedidosPorMes = Pedido::select(
-                DB::raw('MONTH(data_pedido) as mes_num'),
-                DB::raw('SUM(valor_total) as total_vendas')
+            $pedidosPorMes = Order::select(
+                DB::raw('MONTH(order_date) as mes_num'),
+                DB::raw('SUM(total_amount) as total_vendas')
             )
-            ->whereNotNull('data_pedido')
-            ->whereNotIn('status', ['cancelado', 'Cancelado'])
-            ->groupBy(DB::raw('MONTH(data_pedido)'))
+            ->whereNotNull('order_date')
+            ->whereNotIn('status', ['cancelado', 'Cancelado', 'cancelled', 'Cancelled'])
+            ->groupBy(DB::raw('MONTH(order_date)'))
             ->pluck('total_vendas', 'mes_num')
             ->toArray();
 
-            $qtdPedidosPorMes = Pedido::select(
-                DB::raw('MONTH(data_pedido) as mes_num'),
+            $qtdPedidosPorMes = Order::select(
+                DB::raw('MONTH(order_date) as mes_num'),
                 DB::raw('COUNT(*) as total_pedidos')
             )
-            ->whereNotNull('data_pedido')
-            ->groupBy(DB::raw('MONTH(data_pedido)'))
+            ->whereNotNull('order_date')
+            ->groupBy(DB::raw('MONTH(order_date)'))
             ->pluck('total_pedidos', 'mes_num')
             ->toArray();
 
@@ -126,21 +127,21 @@ class AdminDashboardController extends Controller
             $cores = ['#142952', '#000000', '#4a5c3a', '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'];
             $textClasses = ['text-azul', 'text-preto', 'text-army', 'text-blue-500', 'text-rose-500', 'text-emerald-500', 'text-amber-500', 'text-purple-500'];
 
-            $produtosPorTipo = Produto::select('tipo_do_produto', DB::raw('COUNT(*) as total'))
+            $produtosPorTipo = Product::select('product_type', DB::raw('COUNT(*) as total'))
                 ->where(function ($q) {
-                    $q->whereNull('excluido')->orWhereRaw("TRIM(UPPER(COALESCE(excluido, 'N'))) != 'S'");
+                    $q->whereNull('is_deleted')->orWhereRaw("TRIM(UPPER(COALESCE(is_deleted, 'N'))) != 'S'");
                 })
-                ->groupBy('tipo_do_produto')
+                ->groupBy('product_type')
                 ->get();
 
-            $totalProdutos = Produto::where(function ($q) {
-                $q->whereNull('excluido')->orWhereRaw("TRIM(UPPER(COALESCE(excluido, 'N'))) != 'S'");
+            $totalProdutos = Product::where(function ($q) {
+                $q->whereNull('is_deleted')->orWhereRaw("TRIM(UPPER(COALESCE(is_deleted, 'N'))) != 'S'");
             })->count();
 
             $categorias = [];
             $colorIndex = 0;
             foreach ($produtosPorTipo as $tipoItem) {
-                $nomeOriginal = $tipoItem->tipo_do_produto ?? 'Geral';
+                $nomeOriginal = $tipoItem->product_type ?? 'Geral';
                 $nome = ucwords(str_replace('-', ' ', $nomeOriginal));
                 $qtd = (int) $tipoItem->total;
                 $pct = $totalProdutos > 0 ? round(($qtd / $totalProdutos) * 100) : 0;
@@ -156,32 +157,32 @@ class AdminDashboardController extends Controller
             }
 
             // 7. Top 5 coturnos mais vendidos com fotos
-            $topVendasRaw = DB::table('itens_pedidos')
-                ->select('produtos_id', DB::raw('SUM(quantidade) as total_vendas'))
-                ->groupBy('produtos_id')
+            $topVendasRaw = DB::table('order_items')
+                ->select('product_id', DB::raw('SUM(quantity) as total_vendas'))
+                ->groupBy('product_id')
                 ->orderByDesc('total_vendas')
                 ->take(5)
-                ->pluck('total_vendas', 'produtos_id')
+                ->pluck('total_vendas', 'product_id')
                 ->toArray();
 
-            $topProdutosDb = Produto::with(['precos', 'tamanhos', 'imagens'])
+            $topProdutosDb = Product::with(['prices', 'sizes', 'images'])
                 ->where(function ($q) {
-                    $q->whereNull('excluido')->orWhereRaw("TRIM(UPPER(COALESCE(excluido, 'N'))) != 'S'");
+                    $q->whereNull('is_deleted')->orWhereRaw("TRIM(UPPER(COALESCE(is_deleted, 'N'))) != 'S'");
                 })
                 ->take(5)
                 ->get();
 
             $topProdutos = [];
             foreach ($topProdutosDb as $prod) {
-                $preco = (float) ($prod->precos->first()->preco ?? 0);
-                $estoque = (int) $prod->tamanhos->sum('quantidade');
+                $preco = (float) ($prod->prices->first()->price ?? 0);
+                $estoque = (int) $prod->sizes->sum('quantity');
                 $vendas = $topVendasRaw[$prod->id] ?? max(1, (int) round($estoque / 10));
                 $receita = $vendas * $preco;
-                $foto = $prod->imagens->first()->url_imagem ?? '/coturno1.jpeg';
+                $foto = $prod->images->first()->image_url ?? '/coturno1.jpeg';
 
                 $topProdutos[] = [
                     'id' => $prod->id,
-                    'name' => $prod->modelo ?: 'Coturno #' . $prod->id,
+                    'name' => $prod->model ?: 'Coturno #' . $prod->id,
                     'sales' => (int) $vendas,
                     'revenue' => 'R$ ' . number_format($receita, 2, ',', '.'),
                     'rating' => 4.8,

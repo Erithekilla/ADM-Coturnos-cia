@@ -2,38 +2,52 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Pedido;
+use App\Models\Order;
+use App\Models\User;
+use App\Models\Address;
+use App\Models\ProductSize;
+use App\Models\OrderHistory;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class PedidoController extends Controller
 {
     public function index(): JsonResponse
     {
-        $pedidos = Pedido::with(['usuario', 'endereco', 'itens.produto', 'pagamentos', 'historicos'])->orderBy('id', 'desc')->get();
+        $pedidos = Order::with(['user', 'address', 'items.product', 'payments', 'history'])->orderBy('id', 'desc')->get();
 
         $data = $pedidos->map(function ($p) {
             return [
                 'id' => $p->hashid,
-                'valorTotal' => (float) $p->valor_total,
+                'totalAmount' => (float) $p->total_amount,
+                'valorTotal' => (float) $p->total_amount,
                 'status' => $p->status ?: 'Pendente',
                 'statusEnvio' => $p->status ?: 'Pendente',
                 'statusCompra' => 'Aprovado',
-                'dataPedido' => $p->data_pedido ? date('Y-m-d\TH:i:s', strtotime($p->data_pedido)) : date('Y-m-d\TH:i:s'),
-                'usuarioId' => $p->usuario_id ? \App\Models\Usuario::encodeId((int) $p->usuario_id) : null,
-                'cliente' => $p->usuario ? ($p->usuario->nome . ' ' . $p->usuario->sobrenome) : 'Cliente removido',
-                'enderecoId' => $p->endereco_id ? \App\Models\Endereco::encodeId((int) $p->endereco_id) : null,
-                'produtos_do_pedido' => $p->itens->map(function ($item) {
+                'dataPedido' => $p->order_date ? date('Y-m-d\TH:i:s', strtotime($p->order_date)) : date('Y-m-d\TH:i:s'),
+                'orderDate' => $p->order_date ? date('Y-m-d\TH:i:s', strtotime($p->order_date)) : date('Y-m-d\TH:i:s'),
+                'usuarioId' => $p->user_id ? User::encodeId((int) $p->user_id) : null,
+                'userId' => $p->user_id ? User::encodeId((int) $p->user_id) : null,
+                'cliente' => $p->user ? ($p->user->first_name . ' ' . $p->user->last_name) : 'Cliente removido',
+                'enderecoId' => $p->address_id ? Address::encodeId((int) $p->address_id) : null,
+                'addressId' => $p->address_id ? Address::encodeId((int) $p->address_id) : null,
+                'produtos_do_pedido' => $p->items->map(function ($item) {
                     return [
                         'produto' => [
-                            'id' => $item->produto?->hashid,
-                            'nome' => $item->produto?->modelo ?: 'Calçado removido',
-                            'categoria' => $item->produto?->tipo_do_produto ?: 'Coturno',
-                            'preco' => (float) ($item->preco_unitario ?? 0),
+                            'id' => $item->product?->hashid,
+                            'nome' => $item->product?->model ?: 'Calçado removido',
+                            'model' => $item->product?->model ?: 'Calçado removido',
+                            'categoria' => $item->product?->product_type ?: 'Coturno',
+                            'preco' => (float) ($item->unit_price ?? 0),
+                            'unitPrice' => (float) ($item->unit_price ?? 0),
                             'status' => 'Em Estoque',
                         ],
-                        'quantidade' => $item->quantidade ?? 1,
-                        'precoUnitario' => (float) ($item->preco_unitario ?? 0),
+                        'quantidade' => $item->quantity ?? 1,
+                        'quantity' => $item->quantity ?? 1,
+                        'precoUnitario' => (float) ($item->unit_price ?? 0),
+                        'unitPrice' => (float) ($item->unit_price ?? 0),
                     ];
                 }),
             ];
@@ -47,17 +61,36 @@ class PedidoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->decodeHashids($request, ['usuario_id' => \App\Models\Usuario::class, 'endereco_id' => \App\Models\Endereco::class]);
-
-        $validated = $request->validate([
-            'valor_total' => 'required|numeric',
-            'status' => 'required|string|max:45',
-            'data_pedido' => 'required|date',
-            'usuario_id' => 'required|integer|exists:usuario,id',
-            'endereco_id' => 'required|integer|exists:endereco,id',
+        $this->decodeHashids($request, [
+            'usuario_id' => User::class,
+            'user_id' => User::class,
+            'endereco_id' => Address::class,
+            'address_id' => Address::class,
         ]);
 
-        $record = Pedido::create($validated);
+        $userId = $request->input('user_id') ?: $request->input('usuario_id');
+        $addressId = $request->input('address_id') ?: $request->input('endereco_id');
+        $totalAmount = $request->input('total_amount') ?: $request->input('valor_total');
+        $orderDate = $request->input('order_date') ?: $request->input('data_pedido') ?: now();
+        $status = $request->input('status') ?: 'pendente';
+
+        $request->merge([
+            'user_id' => $userId,
+            'address_id' => $addressId,
+            'total_amount' => $totalAmount,
+            'order_date' => $orderDate,
+            'status' => $status,
+        ]);
+
+        $validated = $request->validate([
+            'total_amount' => 'required|numeric',
+            'status' => 'required|string|max:45',
+            'order_date' => 'required|date',
+            'user_id' => 'required|integer|exists:users,id',
+            'address_id' => 'required|integer|exists:addresses,id',
+        ]);
+
+        $record = Order::create($validated);
 
         return response()->json([
             'status' => 'success',
@@ -68,7 +101,7 @@ class PedidoController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = Pedido::findByHashid($id, ['usuario', 'endereco', 'itens.produto', 'pagamentos', 'historicos']);
+        $record = Order::findByHashid($id, ['user', 'address', 'items.product', 'payments', 'history']);
 
         if (!$record) {
             return response()->json([
@@ -85,7 +118,7 @@ class PedidoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $record = Pedido::findByHashid($id, ['itens']);
+        $record = Order::findByHashid($id, ['items']);
 
         if (!$record) {
             return response()->json([
@@ -95,7 +128,7 @@ class PedidoController extends Controller
         }
 
         try {
-            \Illuminate\Support\Facades\DB::beginTransaction();
+            DB::beginTransaction();
 
             $statusAnterior = strtolower(trim((string)$record->status));
             $novoStatusRaw = $request->input('status') ?: $request->input('statusEnvio');
@@ -104,45 +137,46 @@ class PedidoController extends Controller
                 $novoStatus = strtolower(trim((string)$novoStatusRaw));
                 $record->status = $novoStatus;
 
-                if ($novoStatus === 'cancelado' && $statusAnterior !== 'cancelado') {
-                    foreach ($record->itens as $item) {
-                        $query = \App\Models\TamanhoProduto::where('produtos_id', $item->produtos_id);
-                        if (!empty($item->tamanho)) {
-                            $query->where('tamanho', $item->tamanho);
+                if (($novoStatus === 'cancelado' || $novoStatus === 'cancelled') && !in_array($statusAnterior, ['cancelado', 'cancelled'])) {
+                    foreach ($record->items as $item) {
+                        $query = ProductSize::where('product_id', $item->product_id);
+                        if (!empty($item->size)) {
+                            $query->where('size', $item->size);
                         }
-                        $query->increment('quantidade', (int) ($item->quantidade ?: 1));
+                        $query->increment('quantity', (int) ($item->quantity ?: 1));
                     }
                 }
 
                 $statusInt = match ($novoStatus) {
-                    'cancelado' => 0,
-                    'pendente' => 1,
-                    'pago' => 2,
-                    'em_separacao' => 3,
-                    'enviado' => 4,
-                    'entregue' => 5,
+                    'cancelado', 'cancelled' => 0,
+                    'pendente', 'pending' => 1,
+                    'pago', 'paid' => 2,
+                    'em_separacao', 'preparing' => 3,
+                    'enviado', 'shipped' => 4,
+                    'entregue', 'delivered' => 5,
                     default => 1,
                 };
 
-                \App\Models\HistoricoPedido::create([
-                    'pedido_id' => $record->id,
+                OrderHistory::create([
+                    'order_id' => $record->id,
                     'status' => $statusInt,
-                    'data_status' => now(),
-                    'observacao' => "Status atualizado para '{$novoStatus}' via painel",
+                    'status_date' => now(),
+                    'notes' => "Status atualizado para '{$novoStatus}' via painel",
                 ]);
             }
 
-            if ($request->has('codigo_rastreio') && \Illuminate\Support\Facades\Schema::hasColumn('pedido', 'codigo_rastreio')) {
-                $record->codigo_rastreio = $request->input('codigo_rastreio');
+            $trackingCode = $request->input('tracking_code') ?: $request->input('codigo_rastreio');
+            if ($trackingCode) {
+                $record->tracking_code = $trackingCode;
             }
 
-            if ($request->has('valor_total') || $request->has('valorTotal')) {
-                $record->valor_total = (float) ($request->input('valor_total') ?: $request->input('valorTotal'));
+            if ($request->has('total_amount') || $request->has('valor_total') || $request->has('valorTotal')) {
+                $record->total_amount = (float) ($request->input('total_amount') ?: $request->input('valor_total') ?: $request->input('valorTotal'));
             }
 
             $record->save();
 
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             return response()->json([
                 'status' => 'success',
@@ -151,14 +185,14 @@ class PedidoController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
+            DB::rollBack();
             return $this->serverError('Erro ao atualizar pedido.', $e);
         }
     }
 
     public function destroy($id): JsonResponse
     {
-        $record = Pedido::findByHashid($id);
+        $record = Order::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -175,4 +209,3 @@ class PedidoController extends Controller
         ], 200);
     }
 }
-

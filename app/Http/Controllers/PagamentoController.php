@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Pagamento;
+use App\Models\Payment;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -10,7 +11,7 @@ class PagamentoController extends Controller
 {
     public function index(): JsonResponse
     {
-        $data = Pagamento::with(['pedido'])->paginate(20);
+        $data = Payment::with(['order'])->paginate(20);
         return response()->json([
             'status' => 'success',
             'data' => $data
@@ -19,17 +20,34 @@ class PagamentoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->decodeHashids($request, ['pedido_id' => \App\Models\Pedido::class]);
-
-        $validated = $request->validate([
-            'data_pagamento' => 'required|date',
-            'pedido_id' => 'required|integer|exists:pedido,id',
-            'metodo_pagamento' => 'required|string|max:45',
-            'status' => 'required|string|max:45',
-            'valor' => 'required|numeric',
+        $this->decodeHashids($request, [
+            'pedido_id' => Order::class,
+            'order_id' => Order::class,
         ]);
 
-        $record = Pagamento::create($validated);
+        $orderId = $request->input('order_id') ?: $request->input('pedido_id');
+        $paymentDate = $request->input('payment_date') ?: $request->input('data_pagamento') ?: now();
+        $method = $request->input('payment_method') ?: $request->input('metodo_pagamento');
+        $status = $request->input('status') ?: 'aprovado';
+        $amount = $request->input('amount') ?: $request->input('valor');
+
+        $request->merge([
+            'order_id' => $orderId,
+            'payment_date' => $paymentDate,
+            'payment_method' => $method,
+            'status' => $status,
+            'amount' => $amount,
+        ]);
+
+        $validated = $request->validate([
+            'payment_date' => 'required|date',
+            'order_id' => 'required|integer|exists:orders,id',
+            'payment_method' => 'required|string|max:45',
+            'status' => 'required|string|max:45',
+            'amount' => 'required|numeric',
+        ]);
+
+        $record = Payment::create($validated);
 
         return response()->json([
             'status' => 'success',
@@ -40,7 +58,7 @@ class PagamentoController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = Pagamento::findByHashid($id, ['pedido']);
+        $record = Payment::findByHashid($id, ['order']);
 
         if (!$record) {
             return response()->json([
@@ -57,9 +75,12 @@ class PagamentoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $this->decodeHashids($request, ['pedido_id' => \App\Models\Pedido::class]);
+        $this->decodeHashids($request, [
+            'pedido_id' => Order::class,
+            'order_id' => Order::class,
+        ]);
 
-        $record = Pagamento::findByHashid($id);
+        $record = Payment::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -68,15 +89,19 @@ class PagamentoController extends Controller
             ], 404);
         }
 
-        $validated = $request->validate([
-            'data_pagamento' => 'required|date',
-            'pedido_id' => 'required|integer|exists:pedido,id',
-            'metodo_pagamento' => 'required|string|max:45',
-            'status' => 'required|string|max:45',
-            'valor' => 'required|numeric',
-        ]);
+        $orderId = $request->input('order_id') ?: $request->input('pedido_id') ?: $record->order_id;
+        $paymentDate = $request->input('payment_date') ?: $request->input('data_pagamento') ?: $record->payment_date;
+        $method = $request->input('payment_method') ?: $request->input('metodo_pagamento') ?: $record->payment_method;
+        $status = $request->input('status') ?: $record->status;
+        $amount = $request->input('amount') ?: $request->input('valor') ?: $record->amount;
 
-        $record->update($validated);
+        $record->update([
+            'payment_date' => $paymentDate,
+            'order_id' => $orderId,
+            'payment_method' => $method,
+            'status' => $status,
+            'amount' => $amount,
+        ]);
 
         return response()->json([
             'status' => 'success',
@@ -87,7 +112,7 @@ class PagamentoController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $record = Pagamento::findByHashid($id);
+        $record = Payment::findByHashid($id);
 
         if (!$record) {
             return response()->json([
@@ -104,4 +129,3 @@ class PagamentoController extends Controller
         ], 200);
     }
 }
-

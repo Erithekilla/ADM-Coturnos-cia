@@ -2,8 +2,9 @@
 
 namespace App\Services;
 
-use App\Models\Usuario;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * 2.3 — Prevenção contra escalonamento de privilégios.
@@ -16,9 +17,9 @@ use Illuminate\Support\Facades\DB;
  */
 class UserPrivilegeService
 {
-    public const ROLES = ['admin', 'cliente'];
+    public const ROLES = ['admin', 'cliente', 'customer'];
 
-    public function changeRole(Usuario $actor, Usuario $target, string $newRole): Usuario
+    public function changeRole(User $actor, User $target, string $newRole): User
     {
         $newRole = strtolower(trim($newRole));
         if (!in_array($newRole, self::ROLES, true)) {
@@ -42,13 +43,13 @@ class UserPrivilegeService
             // Tokens antigos carregam abilities do papel anterior: força novo login.
             $target->tokens()->delete();
 
-            AuditLogger::record('TOGGLE_USER_ROLE', 'usuario', $target->getKey(), ['role' => $currentRole], ['role' => $newRole], actor: $actor);
+            AuditLogger::record('TOGGLE_USER_ROLE', 'users', $target->getKey(), ['role' => $currentRole], ['role' => $newRole], actor: $actor);
 
             return $target;
         });
     }
 
-    public function changeStatus(Usuario $actor, Usuario $target, string $newStatus): Usuario
+    public function changeStatus(User $actor, User $target, string $newStatus): User
     {
         $newStatus = strtolower(trim($newStatus)) === 'inativo' ? 'inativo' : 'ativo';
         $currentStatus = strtolower((string) ($target->status ?: 'ativo'));
@@ -70,13 +71,13 @@ class UserPrivilegeService
                 $target->tokens()->delete();
             }
 
-            AuditLogger::record('TOGGLE_USER_STATUS', 'usuario', $target->getKey(), ['status' => $currentStatus], ['status' => $newStatus], actor: $actor);
+            AuditLogger::record('TOGGLE_USER_STATUS', 'users', $target->getKey(), ['status' => $currentStatus], ['status' => $newStatus], actor: $actor);
 
             return $target;
         });
     }
 
-    public function softDelete(Usuario $actor, Usuario $target): void
+    public function softDelete(User $actor, User $target): void
     {
         $this->guardSelf($actor, $target, 'excluir a própria conta');
 
@@ -85,35 +86,39 @@ class UserPrivilegeService
         }
 
         DB::transaction(function () use ($actor, $target) {
-            $old = ['status' => $target->status, 'excluido' => $target->excluido];
+            $old = ['status' => $target->status, 'is_deleted' => $target->is_deleted];
 
-            $target->forceFill(['excluido' => 'S', 'status' => 'inativo'])->save();
+            $target->forceFill(['is_deleted' => 'S', 'status' => 'inativo'])->save();
             $target->tokens()->delete();
 
-            foreach ($target->carrinhos as $carrinho) {
-                DB::table('itens_carrinho')->where('carrinho_id_carrinho', $carrinho->id_carrinho)->delete();
+            $cartItemsTable = Schema::hasTable('cart_items') ? 'cart_items' : 'itens_carrinho';
+            $cartCol = Schema::hasColumn($cartItemsTable, 'cart_id') ? 'cart_id' : 'carrinho_id_carrinho';
+
+            foreach ($target->carts as $cart) {
+                DB::table($cartItemsTable)->where($cartCol, $cart->getKey())->delete();
             }
 
-            AuditLogger::record('USER_DELETE', 'usuario', $target->getKey(), $old, ['status' => 'inativo', 'excluido' => 'S'], actor: $actor);
+            AuditLogger::record('USER_DELETE', 'users', $target->getKey(), $old, ['status' => 'inativo', 'is_deleted' => 'S'], actor: $actor);
         });
     }
 
-    private function guardSelf(Usuario $actor, Usuario $target, string $acao): void
+    private function guardSelf(User $actor, User $target, string $acao): void
     {
         if ((int) $actor->getKey() === (int) $target->getKey()) {
             throw new PrivilegeException("Por segurança, você não pode {$acao}. Peça a outro administrador.", 403);
         }
     }
 
-    private function guardLastAdmin(Usuario $target, string $acao): void
+    private function guardLastAdmin(User $target, string $acao): void
     {
-        $outrosAdminsAtivos = Usuario::query()
+        $outrosAdminsAtivos = User::query()
             ->whereRaw('LOWER(role) = ?', ['admin'])
             ->where(function ($q) {
                 $q->whereNull('status')->orWhereRaw('LOWER(status) = ?', ['ativo']);
             })
             ->where(function ($q) {
-                $q->whereNull('excluido')->orWhereRaw("TRIM(UPPER(COALESCE(excluido, 'N'))) != 'S'");
+                $delCol = Schema::hasColumn('users', 'is_deleted') ? 'is_deleted' : 'excluido';
+                $q->whereNull($delCol)->orWhereRaw("TRIM(UPPER(COALESCE({$delCol}, 'N'))) != 'S'");
             })
             ->where('id', '!=', $target->getKey())
             ->count();

@@ -2,20 +2,20 @@
 
 namespace App\Observers;
 
-use App\Models\Pedido;
+use App\Models\Order;
 use App\Services\AuditLogger;
 
 class PedidoObserver
 {
-    public function created(Pedido $pedido): void
+    public function created(Order $pedido): void
     {
-        AuditLogger::record('ORDER_CREATE', 'pedido', $pedido->id, null, [
-            'valor_total' => $pedido->valor_total,
-            'status'      => $pedido->status,
+        AuditLogger::record('ORDER_CREATE', 'orders', $pedido->id, null, [
+            'total_amount' => $pedido->total_amount,
+            'status'       => $pedido->status,
         ]);
     }
 
-    public function updated(Pedido $pedido): void
+    public function updated(Order $pedido): void
     {
         $changes = $pedido->getChanges();
         if (empty($changes)) {
@@ -25,12 +25,12 @@ class PedidoObserver
         $old = array_intersect_key($pedido->getOriginal(), $changes);
         $acao = array_key_exists('status', $changes) ? 'CHANGE_ORDER_STATUS' : 'ORDER_UPDATE';
 
-        AuditLogger::record($acao, 'pedido', $pedido->id, $old, $changes);
+        AuditLogger::record($acao, 'orders', $pedido->id, $old, $changes);
     }
 
-    public function deleted(Pedido $pedido): void
+    public function deleted(Order $pedido): void
     {
-        AuditLogger::record('ORDER_DELETE', 'pedido', $pedido->id, ['status' => $pedido->status], null,
+        AuditLogger::record('ORDER_DELETE', 'orders', $pedido->id, ['status' => $pedido->status], null,
             'Pedido removido');
     }
 }

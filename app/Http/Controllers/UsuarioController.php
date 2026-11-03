@@ -17,7 +17,7 @@ class UsuarioController extends Controller
     {
         $usuarios = Usuario::with('enderecos')
             ->where(function ($q) {
-                $q->whereNull('excluido')->orWhereRaw("TRIM(UPPER(COALESCE(excluido, 'N'))) != 'S'");
+                $q->whereNull('is_deleted')->orWhereRaw("TRIM(UPPER(COALESCE(is_deleted, 'N'))) != 'S'");
             })
             ->orderBy('id', 'desc')
             ->get();
@@ -74,7 +74,7 @@ class UsuarioController extends Controller
         $record->forceFill([
             'role' => $role,
             'status' => $status,
-            'excluido' => 'N',
+            'is_deleted' => 'N',
         ])->save();
 
         $response = [
@@ -177,13 +177,15 @@ class UsuarioController extends Controller
             DB::beginTransaction();
 
             $record->forceFill([
-                'excluido' => 'S',
+                'is_deleted' => 'S',
                 'status' => 'inativo',
             ])->save();
 
             if ($record->relationLoaded('carrinhos') || method_exists($record, 'carrinhos')) {
                 foreach ($record->carrinhos as $carrinho) {
-                    if (Schema::hasTable('itens_carrinho')) {
+                    if (Schema::hasTable('cart_items')) {
+                        DB::table('cart_items')->where('cart_id', $carrinho->id)->delete();
+                    } elseif (Schema::hasTable('itens_carrinho')) {
                         DB::table('itens_carrinho')->where('carrinho_id_carrinho', $carrinho->id_carrinho)->delete();
                     }
                 }

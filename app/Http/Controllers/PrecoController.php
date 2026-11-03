@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Preco;
+use App\Models\ProductPrice;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -10,7 +11,7 @@ class PrecoController extends Controller
 {
     public function index(): JsonResponse
     {
-        $data = Preco::with(['produto', 'promocoes'])->paginate(20);
+        $data = ProductPrice::with(['product', 'promotions'])->paginate(20);
         return response()->json([
             'status' => 'success',
             'data' => $data
@@ -19,31 +20,44 @@ class PrecoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
-
-        $validated = $request->validate([
-            'preco' => 'required|numeric',
-            'alteracao' => 'required|date',
-            'produtos_id' => 'required|integer|exists:produtos,id',
+        $this->decodeHashids($request, [
+            'produtos_id' => Product::class,
+            'product_id' => Product::class,
         ]);
 
-        $record = Preco::create($validated);
+        $productId = $request->input('product_id') ?: $request->input('produtos_id');
+        $price = $request->input('price') ?: $request->input('preco');
+        $date = $request->input('effective_date') ?: $request->input('alteracao') ?: now();
+
+        $request->merge([
+            'product_id' => $productId,
+            'price' => $price,
+            'effective_date' => $date,
+        ]);
+
+        $validated = $request->validate([
+            'price' => 'required|numeric',
+            'effective_date' => 'required|date',
+            'product_id' => 'required|integer|exists:products,id',
+        ]);
+
+        $record = ProductPrice::create($validated);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Preco criado com sucesso!',
+            'message' => 'Preço criado com sucesso!',
             'data' => $record
         ], 201);
     }
 
     public function show($id): JsonResponse
     {
-        $record = Preco::with(['produto', 'promocoes'])->find($id);
+        $record = ProductPrice::with(['product', 'promotions'])->find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Preco não encontrado.'
+                'message' => 'Preço não encontrado.'
             ], 404);
         }
 
@@ -55,40 +69,45 @@ class PrecoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
+        $this->decodeHashids($request, [
+            'produtos_id' => Product::class,
+            'product_id' => Product::class,
+        ]);
 
-        $record = Preco::find($id);
+        $record = ProductPrice::find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Preco não encontrado.'
+                'message' => 'Preço não encontrado.'
             ], 404);
         }
 
-        $validated = $request->validate([
-            'preco' => 'required|numeric',
-            'alteracao' => 'required|date',
-            'produtos_id' => 'required|integer|exists:produtos,id',
-        ]);
+        $productId = $request->input('product_id') ?: $request->input('produtos_id') ?: $record->product_id;
+        $price = $request->input('price') ?: $request->input('preco') ?: $record->price;
+        $date = $request->input('effective_date') ?: $request->input('alteracao') ?: $record->effective_date;
 
-        $record->update($validated);
+        $record->update([
+            'price' => $price,
+            'effective_date' => $date,
+            'product_id' => $productId,
+        ]);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Preco atualizado com sucesso!',
+            'message' => 'Preço atualizado com sucesso!',
             'data' => $record
         ], 200);
     }
 
     public function destroy($id): JsonResponse
     {
-        $record = Preco::find($id);
+        $record = ProductPrice::find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Preco não encontrado.'
+                'message' => 'Preço não encontrado.'
             ], 404);
         }
 
@@ -96,8 +115,7 @@ class PrecoController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Preco removido com sucesso!'
+            'message' => 'Preço removido com sucesso!'
         ], 200);
     }
 }
-

@@ -10,7 +10,7 @@ class BannerController extends Controller
 {
     public function index(): JsonResponse
     {
-        $data = Banner::with(['imagens'])->paginate(20);
+        $data = Banner::with(['images'])->paginate(20);
         return response()->json([
             'status' => 'success',
             'data' => $data
@@ -19,11 +19,11 @@ class BannerController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $ativoRaw = $request->input('ativo') ?: 'ativo';
-        $ativo = (in_array((string)$ativoRaw, ['0', 'inativo', 'Inativo'])) ? 'inativo' : 'ativo';
+        $ativoRaw = $request->input('active', $request->input('ativo', 1));
+        $ativo = (in_array((string)$ativoRaw, ['0', 'inativo', 'Inativo', 'false'])) ? 0 : 1;
 
         $record = Banner::create([
-            'ativo' => $ativo,
+            'active' => $ativo,
         ]);
 
         return response()->json([
@@ -35,7 +35,7 @@ class BannerController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = Banner::with(['imagens'])->find($id);
+        $record = Banner::with(['images'])->find($id);
 
         if (!$record) {
             return response()->json([
@@ -61,14 +61,14 @@ class BannerController extends Controller
             ], 404);
         }
 
-        $ativo = $record->ativo ?: 'ativo';
-        if ($request->has('ativo')) {
-            $ativoRaw = $request->input('ativo');
-            $ativo = (in_array((string)$ativoRaw, ['0', 'inativo', 'Inativo'])) ? 'inativo' : 'ativo';
+        $ativo = $record->active;
+        if ($request->has('active') || $request->has('ativo')) {
+            $ativoRaw = $request->input('active', $request->input('ativo'));
+            $ativo = (in_array((string)$ativoRaw, ['0', 'inativo', 'Inativo', 'false'])) ? 0 : 1;
         }
 
         $record->update([
-            'ativo' => $ativo,
+            'active' => $ativo,
         ]);
 
         return response()->json([
@@ -99,36 +99,23 @@ class BannerController extends Controller
 
     public function uploadStoreImages(Request $request): JsonResponse
     {
-        $urls = [];
-        $targetDir = public_path('admin');
+        $request->validate([
+            'images' => 'required|array',
+            'images.*' => 'image|mimes:jpeg,png,jpg,webp|max:5120',
+        ]);
 
-        if (!file_exists($targetDir)) {
-            mkdir($targetDir, 0755, true);
-        }
-
-        $fields = [
-            'banner' => 'Banner1.png',
-            'carousel' => 'bannerc.jpg',
-            'category' => 'Coleção.png',
-        ];
-
-        foreach ($fields as $field => $defaultFileName) {
-            if ($request->hasFile($field)) {
-                $file = $request->file($field);
-                $ext = $file->getClientOriginalExtension() ?: 'png';
-                $savedName = 'upload_' . $field . '_' . time() . '.' . $ext;
-                $file->move($targetDir, $savedName);
-                $urls[$field] = '/admin/' . $savedName;
-            } else {
-                $urls[$field] = '/admin/' . $defaultFileName;
+        $uploadedPaths = [];
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $file) {
+                $path = $file->store('banners', 'public');
+                $uploadedPaths[] = asset('storage/' . $path);
             }
         }
 
         return response()->json([
-            'success' => true,
-            'message' => 'Imagens enviadas e processadas com sucesso!',
-            'urls' => $urls
+            'status' => 'success',
+            'message' => 'Imagens do banner salvas com sucesso!',
+            'data' => $uploadedPaths
         ], 200);
     }
 }
-

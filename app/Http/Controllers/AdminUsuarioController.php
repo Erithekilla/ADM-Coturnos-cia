@@ -18,14 +18,14 @@ class AdminUsuarioController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Usuario::with('enderecos')->where(function ($q) {
-            $q->whereNull('excluido')->orWhereRaw("TRIM(UPPER(COALESCE(excluido, 'N'))) != 'S'");
+            $q->whereNull('is_deleted')->orWhereRaw("TRIM(UPPER(COALESCE(is_deleted, 'N'))) != 'S'");
         })->orderBy('id', 'desc');
 
         if ($request->filled('search')) {
             $search = (string) $request->input('search');
             $query->where(function ($q) use ($search) {
-                $q->where('nome', 'like', "%{$search}%")
-                  ->orWhere('sobrenome', 'like', "%{$search}%")
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%");
 
                 // CPF cifrado: busca exata pelo Blind Index.
@@ -53,7 +53,7 @@ class AdminUsuarioController extends Controller
             return $this->notFound('Usuário não encontrado.');
         }
 
-        AuditLogger::record('SENSITIVE_DATA_VIEW', 'usuario', $usuario->id, null, null,
+        AuditLogger::record('SENSITIVE_DATA_VIEW', 'users', $usuario->id, null, null,
             'Visualização de dados pessoais (CPF/telefone/nascimento) do usuário ' . $usuario->hashid);
 
         return response()->json([

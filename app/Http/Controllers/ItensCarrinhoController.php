@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ItensCarrinho;
+use App\Models\CartItem;
+use App\Models\Cart;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -10,7 +12,7 @@ class ItensCarrinhoController extends Controller
 {
     public function index(): JsonResponse
     {
-        $data = ItensCarrinho::with(['carrinho', 'produto'])->paginate(20);
+        $data = CartItem::with(['cart', 'product'])->paginate(20);
         return response()->json([
             'status' => 'success',
             'data' => $data
@@ -19,32 +21,47 @@ class ItensCarrinhoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
-
-        $validated = $request->validate([
-            'carrinho_id_carrinho' => 'required|integer|exists:carrinho,id_carrinho',
-            'produtos_id' => 'required|integer|exists:produtos,id',
-            'quantidade' => 'required|integer|min:1',
-            'tamanho' => 'required|integer',
+        $this->decodeHashids($request, [
+            'produtos_id' => Product::class,
+            'product_id' => Product::class,
         ]);
 
-        $record = ItensCarrinho::create($validated);
+        $cartId = $request->input('cart_id') ?: $request->input('carrinho_id_carrinho');
+        $productId = $request->input('product_id') ?: $request->input('produtos_id');
+        $quantity = $request->input('quantity', $request->input('quantidade', 1));
+        $size = $request->input('size') ?: $request->input('tamanho');
+
+        $request->merge([
+            'cart_id' => $cartId,
+            'product_id' => $productId,
+            'quantity' => $quantity,
+            'size' => $size,
+        ]);
+
+        $validated = $request->validate([
+            'cart_id' => 'required|integer|exists:carts,id',
+            'product_id' => 'required|integer|exists:products,id',
+            'quantity' => 'required|integer|min:1',
+            'size' => 'required|integer',
+        ]);
+
+        $record = CartItem::create($validated);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'ItensCarrinho criado com sucesso!',
+            'message' => 'Item do carrinho criado com sucesso!',
             'data' => $record
         ], 201);
     }
 
     public function show($id): JsonResponse
     {
-        $record = ItensCarrinho::with(['carrinho', 'produto'])->find($id);
+        $record = CartItem::with(['cart', 'product'])->find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'ItensCarrinho não encontrado.'
+                'message' => 'Item do carrinho não encontrado.'
             ], 404);
         }
 
@@ -56,41 +73,47 @@ class ItensCarrinhoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class]);
+        $this->decodeHashids($request, [
+            'produtos_id' => Product::class,
+            'product_id' => Product::class,
+        ]);
 
-        $record = ItensCarrinho::find($id);
+        $record = CartItem::find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'ItensCarrinho não encontrado.'
+                'message' => 'Item do carrinho não encontrado.'
             ], 404);
         }
 
-        $validated = $request->validate([
-            'carrinho_id_carrinho' => 'required|integer|exists:carrinho,id_carrinho',
-            'produtos_id' => 'required|integer|exists:produtos,id',
-            'quantidade' => 'required|integer|min:1',
-            'tamanho' => 'required|integer',
-        ]);
+        $cartId = $request->input('cart_id') ?: $request->input('carrinho_id_carrinho') ?: $record->cart_id;
+        $productId = $request->input('product_id') ?: $request->input('produtos_id') ?: $record->product_id;
+        $quantity = $request->input('quantity', $request->input('quantidade', $record->quantity));
+        $size = $request->input('size') ?: $request->input('tamanho') ?: $record->size;
 
-        $record->update($validated);
+        $record->update([
+            'cart_id' => $cartId,
+            'product_id' => $productId,
+            'quantity' => $quantity,
+            'size' => $size,
+        ]);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'ItensCarrinho atualizado com sucesso!',
+            'message' => 'Item do carrinho atualizado com sucesso!',
             'data' => $record
         ], 200);
     }
 
     public function destroy($id): JsonResponse
     {
-        $record = ItensCarrinho::find($id);
+        $record = CartItem::find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'ItensCarrinho não encontrado.'
+                'message' => 'Item do carrinho não encontrado.'
             ], 404);
         }
 
@@ -98,8 +121,7 @@ class ItensCarrinhoController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'ItensCarrinho removido com sucesso!'
+            'message' => 'Item do carrinho removido com sucesso!'
         ], 200);
     }
 }
-

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ItensPedido;
+use App\Models\OrderItem;
+use App\Models\Product;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -10,7 +12,7 @@ class ItensPedidoController extends Controller
 {
     public function index(): JsonResponse
     {
-        $data = ItensPedido::with(['pedido', 'produto'])->paginate(20);
+        $data = OrderItem::with(['order', 'product'])->paginate(20);
         return response()->json([
             'status' => 'success',
             'data' => $data
@@ -19,33 +21,52 @@ class ItensPedidoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class, 'pedido_id' => \App\Models\Pedido::class]);
-
-        $validated = $request->validate([
-            'quantidade' => 'required|integer|min:1',
-            'tamanho' => 'required|integer',
-            'preco_unitario' => 'required|numeric',
-            'produtos_id' => 'required|integer|exists:produtos,id',
-            'pedido_id' => 'required|integer|exists:pedido,id',
+        $this->decodeHashids($request, [
+            'produtos_id' => Product::class,
+            'product_id' => Product::class,
+            'pedido_id' => Order::class,
+            'order_id' => Order::class,
         ]);
 
-        $record = ItensPedido::create($validated);
+        $productId = $request->input('product_id') ?: $request->input('produtos_id');
+        $orderId = $request->input('order_id') ?: $request->input('pedido_id');
+        $quantity = $request->input('quantity', $request->input('quantidade', 1));
+        $size = $request->input('size') ?: $request->input('tamanho');
+        $unitPrice = $request->input('unit_price') ?: $request->input('preco_unitario');
+
+        $request->merge([
+            'product_id' => $productId,
+            'order_id' => $orderId,
+            'quantity' => $quantity,
+            'size' => $size,
+            'unit_price' => $unitPrice,
+        ]);
+
+        $validated = $request->validate([
+            'quantity' => 'required|integer|min:1',
+            'size' => 'required|integer',
+            'unit_price' => 'required|numeric',
+            'product_id' => 'required|integer|exists:products,id',
+            'order_id' => 'required|integer|exists:orders,id',
+        ]);
+
+        $record = OrderItem::create($validated);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'ItensPedido criado com sucesso!',
+            'message' => 'Item do pedido criado com sucesso!',
             'data' => $record
         ], 201);
     }
 
     public function show($id): JsonResponse
     {
-        $record = ItensPedido::with(['pedido', 'produto'])->find($id);
+        $record = OrderItem::with(['order', 'product'])->find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'ItensPedido não encontrado.'
+                'message' => 'Item do pedido não encontrado.'
             ], 404);
         }
 
@@ -57,42 +78,51 @@ class ItensPedidoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $this->decodeHashids($request, ['produtos_id' => \App\Models\Produto::class, 'pedido_id' => \App\Models\Pedido::class]);
+        $this->decodeHashids($request, [
+            'produtos_id' => Product::class,
+            'product_id' => Product::class,
+            'pedido_id' => Order::class,
+            'order_id' => Order::class,
+        ]);
 
-        $record = ItensPedido::find($id);
+        $record = OrderItem::find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'ItensPedido não encontrado.'
+                'message' => 'Item do pedido não encontrado.'
             ], 404);
         }
 
-        $validated = $request->validate([
-            'quantidade' => 'required|integer|min:1',
-            'tamanho' => 'required|integer',
-            'preco_unitario' => 'required|numeric',
-            'produtos_id' => 'required|integer|exists:produtos,id',
-            'pedido_id' => 'required|integer|exists:pedido,id',
-        ]);
+        $productId = $request->input('product_id') ?: $request->input('produtos_id') ?: $record->product_id;
+        $orderId = $request->input('order_id') ?: $request->input('pedido_id') ?: $record->order_id;
+        $quantity = $request->input('quantity', $request->input('quantidade', $record->quantity));
+        $size = $request->input('size') ?: $request->input('tamanho') ?: $record->size;
+        $unitPrice = $request->input('unit_price') ?: $request->input('preco_unitario') ?: $record->unit_price;
 
-        $record->update($validated);
+        $record->update([
+            'product_id' => $productId,
+            'order_id' => $orderId,
+            'quantity' => $quantity,
+            'size' => $size,
+            'unit_price' => $unitPrice,
+        ]);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'ItensPedido atualizado com sucesso!',
+            'message' => 'Item do pedido atualizado com sucesso!',
             'data' => $record
         ], 200);
     }
 
     public function destroy($id): JsonResponse
     {
-        $record = ItensPedido::find($id);
+        $record = OrderItem::find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'ItensPedido não encontrado.'
+                'message' => 'Item do pedido não encontrado.'
             ], 404);
         }
 
@@ -100,8 +130,7 @@ class ItensPedidoController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'ItensPedido removido com sucesso!'
+            'message' => 'Item do pedido removido com sucesso!'
         ], 200);
     }
 }
-

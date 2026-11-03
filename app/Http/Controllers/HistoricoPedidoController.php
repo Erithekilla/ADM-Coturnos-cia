@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\HistoricoPedido;
+use App\Models\OrderHistory;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -10,7 +11,7 @@ class HistoricoPedidoController extends Controller
 {
     public function index(): JsonResponse
     {
-        $data = HistoricoPedido::with(['pedido'])->paginate(20);
+        $data = OrderHistory::with(['order'])->paginate(20);
         return response()->json([
             'status' => 'success',
             'data' => $data
@@ -19,33 +20,50 @@ class HistoricoPedidoController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->decodeHashids($request, ['pedido_id' => \App\Models\Pedido::class]);
+        $this->decodeHashids($request, [
+            'pedido_id' => Order::class,
+            'order_id' => Order::class,
+        ]);
+
+        $orderId = $request->input('order_id') ?: $request->input('pedido_id');
+        $status = $request->input('status', 1);
+        $statusDate = $request->input('status_date') ?: $request->input('data_status') ?: now();
+        $notes = $request->input('notes') ?: $request->input('observacao');
+        $extraInfo = $request->input('extra_info') ?: $request->input('historico_pedidocol');
+
+        $request->merge([
+            'order_id' => $orderId,
+            'status' => $status,
+            'status_date' => $statusDate,
+            'notes' => $notes,
+            'extra_info' => $extraInfo,
+        ]);
 
         $validated = $request->validate([
             'status' => 'required|integer',
-            'pedido_id' => 'required|integer|exists:pedido,id',
-            'data_status' => 'required|date',
-            'observacao' => 'required|string|max:255',
-            'historico_pedidocol' => 'nullable|string|max:45',
+            'order_id' => 'required|integer|exists:orders,id',
+            'status_date' => 'required|date',
+            'notes' => 'required|string|max:255',
+            'extra_info' => 'nullable|string|max:45',
         ]);
 
-        $record = HistoricoPedido::create($validated);
+        $record = OrderHistory::create($validated);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'HistoricoPedido criado com sucesso!',
+            'message' => 'Histórico do pedido criado com sucesso!',
             'data' => $record
         ], 201);
     }
 
     public function show($id): JsonResponse
     {
-        $record = HistoricoPedido::with(['pedido'])->find($id);
+        $record = OrderHistory::with(['order'])->find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'HistoricoPedido não encontrado.'
+                'message' => 'Histórico do pedido não encontrado.'
             ], 404);
         }
 
@@ -57,42 +75,49 @@ class HistoricoPedidoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $this->decodeHashids($request, ['pedido_id' => \App\Models\Pedido::class]);
+        $this->decodeHashids($request, [
+            'pedido_id' => Order::class,
+            'order_id' => Order::class,
+        ]);
 
-        $record = HistoricoPedido::find($id);
+        $record = OrderHistory::find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'HistoricoPedido não encontrado.'
+                'message' => 'Histórico do pedido não encontrado.'
             ], 404);
         }
 
-        $validated = $request->validate([
-            'status' => 'required|integer',
-            'pedido_id' => 'required|integer|exists:pedido,id',
-            'data_status' => 'required|date',
-            'observacao' => 'required|string|max:255',
-            'historico_pedidocol' => 'nullable|string|max:45',
-        ]);
+        $orderId = $request->input('order_id') ?: $request->input('pedido_id') ?: $record->order_id;
+        $status = $request->input('status', $record->status);
+        $statusDate = $request->input('status_date') ?: $request->input('data_status') ?: $record->status_date;
+        $notes = $request->input('notes') ?: $request->input('observacao') ?: $record->notes;
+        $extraInfo = $request->input('extra_info') ?: $request->input('historico_pedidocol') ?: $record->extra_info;
 
-        $record->update($validated);
+        $record->update([
+            'order_id' => $orderId,
+            'status' => $status,
+            'status_date' => $statusDate,
+            'notes' => $notes,
+            'extra_info' => $extraInfo,
+        ]);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'HistoricoPedido atualizado com sucesso!',
+            'message' => 'Histórico do pedido atualizado com sucesso!',
             'data' => $record
         ], 200);
     }
 
     public function destroy($id): JsonResponse
     {
-        $record = HistoricoPedido::find($id);
+        $record = OrderHistory::find($id);
 
         if (!$record) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'HistoricoPedido não encontrado.'
+                'message' => 'Histórico do pedido não encontrado.'
             ], 404);
         }
 
@@ -100,8 +125,7 @@ class HistoricoPedidoController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'HistoricoPedido removido com sucesso!'
+            'message' => 'Histórico do pedido removido com sucesso!'
         ], 200);
     }
 }
-

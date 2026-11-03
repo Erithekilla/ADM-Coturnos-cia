@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Produto;
-use App\Models\Preco;
-use App\Models\TamanhoProduto;
-use App\Models\ImagensProduto;
-use App\Models\ItensCarrinho;
-use App\Models\PromocaoProduto;
-use App\Models\ColecaoHasProduto;
+use App\Models\Product;
+use App\Models\ProductPrice;
+use App\Models\ProductSize;
+use App\Models\ProductImage;
+use App\Models\CartItem;
+use App\Models\ProductPromotion;
+use App\Models\CollectionProduct;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -17,18 +17,18 @@ class ProdutoController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Produto::with(['imagens', 'precos', 'tamanhos'])
+        $query = Product::with(['images', 'prices', 'sizes'])
             ->where(function ($q) {
-                $q->whereNull('excluido')->orWhereRaw("TRIM(UPPER(COALESCE(excluido, 'N'))) != 'S'");
+                $q->whereNull('is_deleted')->orWhereRaw("TRIM(UPPER(COALESCE(is_deleted, 'N'))) != 'S'");
             })
             ->orderBy('id', 'desc');
 
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('modelo', 'like', "%{$search}%")
-                  ->orWhere('tipo_do_produto', 'like', "%{$search}%")
-                  ->orWhere('marca', 'like', "%{$search}%");
+                $q->where('model', 'like', "%{$search}%")
+                  ->orWhere('product_type', 'like', "%{$search}%")
+                  ->orWhere('brand', 'like', "%{$search}%");
             });
         }
 
@@ -50,8 +50,10 @@ class ProdutoController extends Controller
         $request->validate([
             'name' => 'nullable|string|max:45',
             'modelo' => 'nullable|string|max:45',
+            'model' => 'nullable|string|max:45',
             'productType' => 'nullable|string|max:45',
             'tipo_do_produto' => 'nullable|string|max:45',
+            'product_type' => 'nullable|string|max:45',
             'brand' => 'nullable|string|max:45',
             'marca' => 'nullable|string|max:45',
             'price' => 'nullable|numeric|min:0',
@@ -60,8 +62,8 @@ class ProdutoController extends Controller
             'tamanhos' => 'nullable',
         ]);
 
-        $modelo = $request->input('name') ?: $request->input('modelo');
-        $tipo = $request->input('productType') ?: $request->input('tipo_do_produto') ?: 'Coturno';
+        $modelo = $request->input('model') ?: $request->input('name') ?: $request->input('modelo');
+        $tipo = $request->input('product_type') ?: $request->input('productType') ?: $request->input('tipo_do_produto') ?: 'Coturno';
         $marca = $request->input('brand') ?: $request->input('marca') ?: 'Coturnos & Cia';
         $descricao = $request->input('description') ?: $request->input('descricao') ?: '';
         $cor = $request->input('color') ?: $request->input('cor') ?: 'Preto';
@@ -84,21 +86,21 @@ class ProdutoController extends Controller
         try {
             DB::beginTransaction();
 
-            $produto = Produto::create([
-                'tipo_do_produto' => substr($tipo, 0, 45),
-                'modelo' => substr($modelo ?: 'Novo Produto', 0, 45),
-                'marca' => substr($marca, 0, 45),
-                'descricao' => substr($descricao, 0, 255),
-                'cor' => substr($cor ?: 'Preto', 0, 45),
-                'ativo' => $ativo,
+            $produto = Product::create([
+                'product_type' => substr($tipo, 0, 45),
+                'model' => substr($modelo ?: 'Novo Produto', 0, 45),
+                'brand' => substr($marca, 0, 45),
+                'description' => substr($descricao, 0, 255),
+                'color' => substr($cor ?: 'Preto', 0, 45),
+                'active' => $ativo,
                 'status' => $ativo,
-                'excluido' => 'N',
+                'is_deleted' => 'N',
             ]);
 
-            Preco::create([
-                'preco' => $precoValor,
-                'alteracao' => now(),
-                'produtos_id' => $produto->id,
+            ProductPrice::create([
+                'price' => $precoValor,
+                'effective_date' => now(),
+                'product_id' => $produto->id,
             ]);
 
             if (is_array($tamanhosRecebidos) && count($tamanhosRecebidos) > 0) {
@@ -106,25 +108,25 @@ class ProdutoController extends Controller
                 foreach ($tamanhosRecebidos as $tam) {
                     $tamNum = (int) $tam;
                     if ($tamNum > 0) {
-                        TamanhoProduto::create([
-                            'produtos_id' => $produto->id,
-                            'tamanho' => $tamNum,
-                            'quantidade' => $qtdPorTamanho,
+                        ProductSize::create([
+                            'product_id' => $produto->id,
+                            'size' => $tamNum,
+                            'quantity' => $qtdPorTamanho,
                         ]);
                     }
                 }
             }
 
             if (!empty($imageUrl)) {
-                ImagensProduto::create([
-                    'url_imagem' => $imageUrl,
-                    'produtos_id' => $produto->id,
+                ProductImage::create([
+                    'image_url' => $imageUrl,
+                    'product_id' => $produto->id,
                 ]);
             }
 
             DB::commit();
 
-            $produtoCarregado = Produto::with(['imagens', 'precos', 'tamanhos'])->find($produto->id);
+            $produtoCarregado = Product::with(['images', 'prices', 'sizes'])->find($produto->id);
 
             return response()->json([
                 'status' => 'success',
@@ -139,7 +141,7 @@ class ProdutoController extends Controller
 
     public function show($id): JsonResponse
     {
-        $produto = Produto::findByHashid($id, ['imagens', 'precos', 'tamanhos']);
+        $produto = Product::findByHashid($id, ['images', 'prices', 'sizes']);
 
         if (!$produto) {
             return response()->json([
@@ -156,7 +158,7 @@ class ProdutoController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $produto = Produto::findByHashid($id);
+        $produto = Product::findByHashid($id);
 
         if (!$produto) {
             return response()->json([
@@ -168,34 +170,34 @@ class ProdutoController extends Controller
         try {
             DB::beginTransaction();
 
-            $modelo = $request->input('name') ?: $request->input('modelo') ?: $produto->modelo;
-            $tipo = $request->input('productType') ?: $request->input('tipo_do_produto') ?: $produto->tipo_do_produto;
-            $marca = $request->input('brand') ?: $request->input('marca') ?: $produto->marca;
-            $descricao = $request->input('description') ?: $request->input('descricao') ?: $produto->descricao;
-            $cor = $request->input('color') ?: $request->input('cor') ?: $produto->cor ?: 'Preto';
+            $modelo = $request->input('model') ?: $request->input('name') ?: $request->input('modelo') ?: $produto->model;
+            $tipo = $request->input('product_type') ?: $request->input('productType') ?: $request->input('tipo_do_produto') ?: $produto->product_type;
+            $marca = $request->input('brand') ?: $request->input('marca') ?: $produto->brand;
+            $descricao = $request->input('description') ?: $request->input('descricao') ?: $produto->description;
+            $cor = $request->input('color') ?: $request->input('cor') ?: $produto->color ?: 'Preto';
 
-            $ativo = $produto->ativo ?: 'ativo';
+            $ativo = $produto->active ?: 'ativo';
             if ($request->has('active') || $request->has('ativo') || $request->has('status')) {
                 $val = $request->input('active') ?: $request->input('ativo') ?: $request->input('status');
                 $ativo = strtolower((string)$val) === 'inativo' ? 'inativo' : 'ativo';
             }
 
             $produto->update([
-                'tipo_do_produto' => substr($tipo, 0, 45),
-                'modelo' => substr($modelo, 0, 45),
-                'marca' => substr($marca, 0, 45),
-                'descricao' => substr($descricao, 0, 255),
-                'cor' => substr($cor, 0, 45),
-                'ativo' => $ativo,
+                'product_type' => substr($tipo, 0, 45),
+                'model' => substr($modelo, 0, 45),
+                'brand' => substr($marca, 0, 45),
+                'description' => substr($descricao, 0, 255),
+                'color' => substr($cor, 0, 45),
+                'active' => $ativo,
                 'status' => $ativo,
             ]);
 
             if ($request->has('price') || $request->has('preco')) {
                 $precoValor = (float) ($request->input('price') ?: $request->input('preco'));
-                Preco::create([
-                    'preco' => $precoValor,
-                    'alteracao' => now(),
-                    'produtos_id' => $produto->id,
+                ProductPrice::create([
+                    'price' => $precoValor,
+                    'effective_date' => now(),
+                    'product_id' => $produto->id,
                 ]);
             }
 
@@ -206,17 +208,17 @@ class ProdutoController extends Controller
                 }
 
                 if (is_array($tamanhosRecebidos)) {
-                    TamanhoProduto::where('produtos_id', $produto->id)->delete();
+                    ProductSize::where('product_id', $produto->id)->delete();
                     $estoqueTotal = (int) ($request->input('stock') ?: $request->input('estoque') ?: 20);
                     $qtdPorTamanho = max(1, (int) round($estoqueTotal / max(1, count($tamanhosRecebidos))));
 
                     foreach ($tamanhosRecebidos as $tam) {
                         $tamNum = (int) $tam;
                         if ($tamNum > 0) {
-                            TamanhoProduto::create([
-                                'produtos_id' => $produto->id,
-                                'tamanho' => $tamNum,
-                                'quantidade' => $qtdPorTamanho,
+                            ProductSize::create([
+                                'product_id' => $produto->id,
+                                'size' => $tamNum,
+                                'quantity' => $qtdPorTamanho,
                             ]);
                         }
                     }
@@ -226,17 +228,17 @@ class ProdutoController extends Controller
             if ($request->has('image') || $request->has('imagem')) {
                 $imageUrl = $request->input('image') ?: $request->input('imagem');
                 if (!empty($imageUrl)) {
-                    ImagensProduto::where('produtos_id', $produto->id)->delete();
-                    ImagensProduto::create([
-                        'url_imagem' => $imageUrl,
-                        'produtos_id' => $produto->id,
+                    ProductImage::where('product_id', $produto->id)->delete();
+                    ProductImage::create([
+                        'image_url' => $imageUrl,
+                        'product_id' => $produto->id,
                     ]);
                 }
             }
 
             DB::commit();
 
-            $produtoAtualizado = Produto::with(['imagens', 'precos', 'tamanhos'])->find($produto->id);
+            $produtoAtualizado = Product::with(['images', 'prices', 'sizes'])->find($produto->id);
 
             return response()->json([
                 'status' => 'success',
@@ -251,7 +253,7 @@ class ProdutoController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $produto = Produto::findByHashid($id);
+        $produto = Product::findByHashid($id);
 
         if (!$produto) {
             return response()->json([
@@ -263,14 +265,13 @@ class ProdutoController extends Controller
         try {
             DB::beginTransaction();
 
-            ItensCarrinho::where('produtos_id', $produto->id)->delete();
+            CartItem::where('product_id', $produto->id)->delete();
+            CollectionProduct::where('product_id', $produto->id)->delete();
 
-            DB::table('colecao_has_produtos')->where('produtos_id', $produto->id)->delete();
-
-            // Via Eloquent (e não DB::table) para que o ProdutoObserver registre a auditoria.
+            // Via Eloquent (e não DB::table) para que o ProductObserver registre a auditoria.
             $produto->forceFill([
-                'excluido' => 'S',
-                'ativo' => 'inativo',
+                'is_deleted' => 'S',
+                'active' => 'inativo',
                 'status' => 'inativo',
             ])->save();
 
@@ -287,32 +288,32 @@ class ProdutoController extends Controller
         }
     }
 
-    private function formatarProduto(Produto $p): array
+    private function formatarProduto(Product $p): array
     {
-        $precoRecente = $p->precos->sortByDesc('alteracao')->first();
-        $preco = $precoRecente ? (float) $precoRecente->preco : 0;
+        $precoRecente = $p->prices->sortByDesc('effective_date')->first();
+        $preco = $precoRecente ? (float) $precoRecente->price : 0;
 
-        $tamanhosColecao = $p->tamanhos->sortBy('tamanho');
-        $tamanhosArray = $tamanhosColecao->pluck('tamanho')->values()->toArray();
+        $tamanhosColecao = $p->sizes->sortBy('size');
+        $tamanhosArray = $tamanhosColecao->pluck('size')->values()->toArray();
         $tamanhosTexto = count($tamanhosArray) > 0 ? implode(', ', $tamanhosArray) : '38-44';
 
-        $estoque = $tamanhosColecao->sum('quantidade') ?: 20;
-        $imagem = $p->imagens->first()->url_imagem ?? '/coturno1.jpeg';
+        $estoque = $tamanhosColecao->sum('quantity') ?: 20;
+        $imagem = $p->images->first()->image_url ?? '/coturno1.jpeg';
 
-        $cor = $p->cor ?: 'Preto';
-        if ($cor === 'Preto' && preg_match('/Cor:\s*([^|]+)/i', $p->descricao, $matches)) {
+        $cor = $p->color ?: 'Preto';
+        if ($cor === 'Preto' && preg_match('/Cor:\s*([^|]+)/i', (string) $p->description, $matches)) {
             $cor = trim($matches[1]);
         }
 
-        $isAtivo = strtolower((string)$p->ativo) !== 'inativo' && strtolower((string)$p->status) !== 'inativo';
+        $isAtivo = strtolower((string)$p->active) !== 'inativo' && strtolower((string)$p->status) !== 'inativo';
 
         return [
             'id' => $p->hashid,
-            'name' => $p->modelo,
-            'productType' => $p->tipo_do_produto,
-            'model' => $p->modelo,
-            'brand' => $p->marca,
-            'description' => $p->descricao,
+            'name' => $p->model,
+            'productType' => $p->product_type,
+            'model' => $p->model,
+            'brand' => $p->brand,
+            'description' => $p->description,
             'active' => $isAtivo ? 'Ativo' : 'Inativo',
             'ativo' => $isAtivo ? 'ativo' : 'inativo',
             'status' => $isAtivo ? 'ativo' : 'inativo',
@@ -325,4 +326,3 @@ class ProdutoController extends Controller
         ];
     }
 }
-
